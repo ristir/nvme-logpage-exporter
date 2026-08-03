@@ -7,7 +7,7 @@
   "links": [],
   "panels": [
     {
-      "id": 45,
+      "id": 46,
       "type": "row",
       "title": "Fleet health",
       "collapsed": false,
@@ -622,7 +622,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 16,
+        "w": 10,
         "x": 8,
         "y": 5
       },
@@ -698,7 +698,122 @@
       }
     },
     {
-      "id": 46,
+      "id": 11,
+      "type": "table",
+      "title": "Controllers that answer nothing",
+      "description": "Devices sysfs still lists but that no longer answer Identify, so nothing knows their model or serial. Usually a controller the kernel has marked dead. Empty is the healthy state. They are missing from every table that shows a model, which is why they get one of their own.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 5
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "nvme_logpage_controller_state{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} unless on(job, instance, device) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "Value": true,
+              "serial": true
+            },
+            "renameByName": {
+              "instance": "Host",
+              "device": "Device",
+              "state": "Kernel state"
+            },
+            "indexByName": {
+              "instance": 0,
+              "device": 1,
+              "state": 2
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Kernel state"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "dead": {
+                        "text": "dead",
+                        "color": "red",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      }
+    },
+    {
+      "id": 47,
       "type": "row",
       "title": "Worst offenders",
       "collapsed": false,
@@ -711,7 +826,7 @@
       "panels": []
     },
     {
-      "id": 11,
+      "id": 12,
       "type": "table",
       "title": "Most worn drives",
       "description": "Consumed write endurance, worst first. The drive's own estimate: it may exceed 100%, which the specification allows.",
@@ -856,7 +971,7 @@
       }
     },
     {
-      "id": 12,
+      "id": 13,
       "type": "table",
       "title": "Least temperature headroom",
       "description": "Degrees left before each drive reaches the warning temperature it reports for itself. A negative value means the drive is already over its own threshold. Ranking by headroom rather than by temperature is what makes a mixed fleet comparable: the thresholds differ by 17 degrees across these models.",
@@ -992,7 +1107,7 @@
       }
     },
     {
-      "id": 13,
+      "id": 14,
       "type": "table",
       "title": "Highest write amplification",
       "description": "Bytes written to the NAND divided by bytes sent by the host \u2014 lifetime average, from the OCP log. Only drives exposing page 0xC0 appear. A high ratio on a drive that has written very little is normal: at low cumulative writes the figure is dominated by the controller's own background activity rather than by the workload.",
@@ -1128,7 +1243,7 @@
       }
     },
     {
-      "id": 14,
+      "id": 15,
       "type": "table",
       "title": "Fastest wearing drives",
       "description": "Endurance consumed per year, averaged over the drive's whole power-on life. Answers 'which drive will need replacing first', which the absolute wear figure does not: a drive at 50% after eight years matters less than one at 10% after six months. A lifetime average rather than a recent rate, because the field is whole percents and does not move at all over a short window. That same quantisation sets the accuracy: the relative error is roughly half a percent divided by the wear figure, so a drive reading 2% carries about a quarter, and one reading 50% about a fiftieth. Drives up for less than a day are left out; for the rest, check Age in the per-device table before trusting a young drive's rate.",
@@ -1264,7 +1379,7 @@
       }
     },
     {
-      "id": 47,
+      "id": 48,
       "type": "row",
       "title": "Inventory",
       "collapsed": true,
@@ -1276,7 +1391,7 @@
       },
       "panels": [
         {
-          "id": 15,
+          "id": 16,
           "type": "table",
           "title": "Devices",
           "description": "One row per controller. See the generator for why each query is wrapped in group_left and label_replace: the columns cannot be joined without both.",
@@ -1301,7 +1416,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "A"
             },
             {
@@ -1314,7 +1429,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "B"
             },
             {
@@ -1327,7 +1442,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "C"
             },
             {
@@ -1340,7 +1455,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "D"
             },
             {
@@ -1353,7 +1468,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "E"
             },
             {
@@ -1366,7 +1481,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "F"
             }
           ],
@@ -1539,7 +1654,7 @@
           }
         },
         {
-          "id": 16,
+          "id": 17,
           "type": "table",
           "title": "Firmware slots",
           "description": "Firmware held in each slot. A revision in slot 1 that differs from the active slot is the drive's previous firmware, kept for rollback \u2014 useful when auditing which drives have been updated and which have not.",
@@ -1627,7 +1742,7 @@
           }
         },
         {
-          "id": 17,
+          "id": 18,
           "type": "table",
           "title": "Namespaces",
           "description": "Namespace size against the OCP NUSE field, which counts allocated LBAs. The gap between this and the filesystem's own usage is space the filesystem has freed but never handed back to the drive with TRIM \u2014 nothing else on the host reports that.",
@@ -1652,7 +1767,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "A"
             },
             {
@@ -1665,7 +1780,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "B"
             },
             {
@@ -1678,7 +1793,7 @@
               "legendFormat": "",
               "range": false,
               "instant": true,
-              "format": "table",
+              "format": "time_series",
               "refId": "C"
             }
           ],
@@ -1782,7 +1897,7 @@
       ]
     },
     {
-      "id": 48,
+      "id": 49,
       "type": "row",
       "title": "Endurance and wear",
       "collapsed": true,
@@ -1794,7 +1909,7 @@
       },
       "panels": [
         {
-          "id": 18,
+          "id": 19,
           "type": "timeseries",
           "title": "Endurance used",
           "description": "Consumed write endurance over time. The slope is what matters; the absolute value is the drive's own estimate.",
@@ -1872,7 +1987,7 @@
           }
         },
         {
-          "id": 19,
+          "id": 20,
           "type": "timeseries",
           "title": "Available spare vs threshold",
           "description": "Remaining spare capacity against the threshold below which the controller raises its own warning.",
@@ -1963,7 +2078,7 @@
           }
         },
         {
-          "id": 20,
+          "id": 21,
           "type": "timeseries",
           "title": "Host write rate",
           "description": "Bytes per second written by the host.",
@@ -2040,7 +2155,7 @@
           }
         },
         {
-          "id": 21,
+          "id": 22,
           "type": "timeseries",
           "title": "Media write rate (OCP)",
           "description": "Bytes per second actually written to the NAND. Only drives exposing page 0xC0 appear here; compare against the host write rate beside it to see amplification as it happens rather than as a lifetime average.",
@@ -2117,7 +2232,7 @@
           }
         },
         {
-          "id": 22,
+          "id": 23,
           "type": "table",
           "title": "Warranty budget consumed",
           "description": "Host bytes written as a fraction of the drive's own Endurance Estimate, which is the warranty budget and comes from the OCP log, so only drives serving page 0xC0 appear. Unlike the wear field this is computed from two exact counters and does not move in whole percent steps. It answers a different question, and the two disagree on purpose: a Micron 7450 that has spent 20% of its warranty reports 4% wear, because the datasheet figure is deliberately conservative and the NAND outlives it. Not comparable across vendors either \u2014 measured here, the same field works out to 1.0 DWPD over five years on a Micron 7450 and 4.1 on a Samsung PM9A3, matching the Micron datasheet but quadrupling the Samsung one.",
@@ -2253,7 +2368,7 @@
           }
         },
         {
-          "id": 23,
+          "id": 24,
           "type": "timeseries",
           "title": "Write amplification (lifetime)",
           "description": "Media bytes divided by host bytes since the drive was new.",
@@ -2330,7 +2445,7 @@
           }
         },
         {
-          "id": 24,
+          "id": 25,
           "type": "table",
           "title": "Soonest to exhaust endurance",
           "description": "Time until 100% if the drive keeps wearing at its lifetime average. Only drives due within ten years are listed: beyond that the answer is 'never' and the number is an artifact of the field being whole percents, where a drive reading 1% projects to ninety-nine times its own age. Drives with no wear yet, and drives already past 100%, have nothing to project.",
@@ -2468,7 +2583,7 @@
       ]
     },
     {
-      "id": 49,
+      "id": 50,
       "type": "row",
       "title": "Temperature",
       "collapsed": true,
@@ -2480,7 +2595,7 @@
       },
       "panels": [
         {
-          "id": 25,
+          "id": 26,
           "type": "timeseries",
           "title": "Composite temperature vs the drive's own thresholds",
           "description": "Thresholds come from Identify Controller, per drive. They span 17 degrees across this fleet, so a fixed line drawn at 70 C would be at the normal operating point for some models and far above it for others.",
@@ -2583,7 +2698,7 @@
           }
         },
         {
-          "id": 26,
+          "id": 27,
           "type": "timeseries",
           "title": "Per-sensor temperature",
           "description": "Individual sensors, where the controller implements them. Sensors reading zero are not implemented and are not emitted.",
@@ -2660,7 +2775,7 @@
           }
         },
         {
-          "id": 27,
+          "id": 28,
           "type": "timeseries",
           "title": "Time fraction above temperature thresholds",
           "description": "Fraction of wall-clock time spent over each threshold. A sustained value near 1 means the drive is permanently hot.",
@@ -2750,7 +2865,7 @@
           }
         },
         {
-          "id": 28,
+          "id": 29,
           "type": "timeseries",
           "title": "Thermal throttling",
           "description": "Throttling currently applied, from the OCP log, alongside the time fraction spent in each thermal management level from the health log. Both read zero on every drive checked so far.",
@@ -2842,7 +2957,7 @@
       ]
     },
     {
-      "id": 50,
+      "id": 51,
       "type": "row",
       "title": "Reliability",
       "collapsed": true,
@@ -2854,7 +2969,7 @@
       },
       "panels": [
         {
-          "id": 29,
+          "id": 30,
           "type": "state-timeline",
           "title": "Critical warning flags",
           "description": "Only flags that are actually set are plotted \u2014 an unfiltered version draws one lane per device per flag and is unreadable past a handful of hosts. Empty means nothing is set.",
@@ -2935,7 +3050,7 @@
           }
         },
         {
-          "id": 30,
+          "id": 31,
           "type": "timeseries",
           "title": "Media errors (rate)",
           "description": "Unrecovered data integrity errors per second. Any sustained non-zero value is serious.",
@@ -3012,7 +3127,7 @@
           }
         },
         {
-          "id": 31,
+          "id": 32,
           "type": "timeseries",
           "title": "Uncorrectable read errors (rate, OCP)",
           "description": "From the OCP log: reads the controller could not correct.",
@@ -3089,7 +3204,7 @@
           }
         },
         {
-          "id": 32,
+          "id": 33,
           "type": "timeseries",
           "title": "Retired NAND blocks (OCP)",
           "description": "Blocks the controller has taken out of service. A field a controller reports as unimplemented is omitted entirely rather than shown as zero, so a missing series here means 'not reported', not 'none'.",
@@ -3166,7 +3281,7 @@
           }
         },
         {
-          "id": 33,
+          "id": 34,
           "type": "timeseries",
           "title": "Unsafe shutdowns and power cycles (rate)",
           "description": "An unsafe shutdown count that tracks the power cycle count means the host is not shutting the drive down cleanly.",
@@ -3256,7 +3371,7 @@
           }
         },
         {
-          "id": 34,
+          "id": 35,
           "type": "table",
           "title": "Error log entries by status",
           "description": "The most recent entries in the drive's Error Information log, grouped by status \u2014 at most 8, since the exporter reads a fixed 512 bytes while the log itself holds 64 to 256. Diagnostic only. Note that this includes admin commands rejected because the drive does not implement them \u2014 including probes from other monitoring tools on the same host \u2014 so it is not a health signal on its own.",
@@ -3340,7 +3455,7 @@
       ]
     },
     {
-      "id": 51,
+      "id": 52,
       "type": "row",
       "title": "Activity",
       "collapsed": true,
@@ -3352,7 +3467,7 @@
       },
       "panels": [
         {
-          "id": 35,
+          "id": 36,
           "type": "timeseries",
           "title": "Host byte rate",
           "description": "Throughput as the controller counts it.",
@@ -3442,7 +3557,7 @@
           }
         },
         {
-          "id": 36,
+          "id": 37,
           "type": "timeseries",
           "title": "Host command rate",
           "description": "Commands per second. Divided into the byte rate beside it this gives average request size.",
@@ -3532,7 +3647,7 @@
           }
         },
         {
-          "id": 37,
+          "id": 38,
           "type": "timeseries",
           "title": "Controller busy fraction",
           "description": "Fraction of time the controller spent processing commands. Approaching 1 means the drive, not the host, is the bottleneck.",
@@ -3609,7 +3724,7 @@
           }
         },
         {
-          "id": 38,
+          "id": 39,
           "type": "timeseries",
           "title": "Unaligned I/O (rate, OCP)",
           "description": "Host operations not aligned to the controller's internal granularity. A high rate is a direct cause of write amplification.",
@@ -3688,7 +3803,7 @@
       ]
     },
     {
-      "id": 52,
+      "id": 53,
       "type": "row",
       "title": "Exporter self-diagnostics",
       "collapsed": true,
@@ -3700,7 +3815,7 @@
       },
       "panels": [
         {
-          "id": 39,
+          "id": 40,
           "type": "timeseries",
           "title": "Devices failing to scrape",
           "description": "A count, not one lane per device: at fleet scale a per-device state timeline is an unreadable smear. Flat zero is healthy; the table beside it names whoever is not.",
@@ -3778,7 +3893,7 @@
           }
         },
         {
-          "id": 40,
+          "id": 41,
           "type": "table",
           "title": "Devices failing right now",
           "description": "Empty is the healthy state. Cross-reference the reason in \"Errors by reason\" below: 'open' means device-file permissions, 'capability' means CAP_SYS_ADMIN.",
@@ -3858,7 +3973,7 @@
           }
         },
         {
-          "id": 41,
+          "id": 42,
           "type": "timeseries",
           "title": "Devices serving each log page",
           "description": "One line per page rather than one per device and page, which is 112 lanes on this fleet alone. Pages 0x01, 0x02 and 0x03 are mandatory, so those lines should track the device count; 0xC0 is expected to be lower, since client-class drives and the Intel and Dell units do not serve it.",
@@ -3936,7 +4051,7 @@
           }
         },
         {
-          "id": 42,
+          "id": 43,
           "type": "timeseries",
           "title": "Errors by reason (rate)",
           "description": "\"No data\" here means no device has ever failed, which is the healthy state. 'open' means the device file could not be opened \u2014 install the udev rule. 'capability' means it opened but the ioctl was refused \u2014 check AmbientCapabilities.",
@@ -4013,7 +4128,7 @@
           }
         },
         {
-          "id": 43,
+          "id": 44,
           "type": "timeseries",
           "title": "Scrape duration",
           "description": "Time to poll one device. Single-digit milliseconds is normal; this exporter issues ioctls directly rather than forking a helper per scrape.",
@@ -4090,7 +4205,7 @@
           }
         },
         {
-          "id": 44,
+          "id": 45,
           "type": "table",
           "title": "Exporter build",
           "description": "Version of the exporter running on each host \u2014 check here first when a metric is missing on some hosts but not others. The build-tag field is dropped: this project uses none, so it always reads \"unknown\".",

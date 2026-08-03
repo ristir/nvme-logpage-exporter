@@ -373,12 +373,11 @@ docker run --cap-add=SYS_ADMIN \
   nvme_logpage_exporter:<version>
 ```
 
-That is what lets the same image run unmodified in, for example, a
-Kubernetes DaemonSet. `SYS_ADMIN` is rejected by the `baseline` and
-`restricted` Pod Security Standards, so the namespace needs
-`pod-security.kubernetes.io/enforce: privileged`, plus
-`securityContext.capabilities.add: [SYS_ADMIN]` and hostPath mounts for
-the device nodes and `/sys`.
+Kubernetes is the exception, and it needs `privileged: true`. There is no
+field for a device cgroup rule, so a hostPath `/dev` gets `EPERM` on open
+however many capabilities the pod is given — measured, not assumed. The
+namespace also needs `pod-security.kubernetes.io/enforce: privileged`. A
+ready DaemonSet is in [`packaging/kubernetes/`](packaging/kubernetes/).
 
 ## Working with dumps
 

@@ -327,7 +327,36 @@ warnings_table = table(
                          "serial": "Serial", "flag": "Flag"},
                  order=["instance", "device", "serial", "flag"]),
     ],
-    w=16, h=8, x=8, y=5,
+    w=10, h=8, x=8, y=5,
+)
+
+
+# A controller the kernel calls dead answers no Identify, so it has no
+# device_info and every table joined against that one drops it silently —
+# including the offender tables, which is where someone would look first.
+unidentified_table = table(
+    "Controllers that answer nothing",
+    [tgt(f"nvme_logpage_controller_state{{{SEL}}} unless on(job, instance, device) "
+         f"nvme_logpage_device_info{{{SEL}}}", instant=True, fmt="table")],
+    "Devices sysfs still lists but that no longer answer Identify, so nothing "
+    "knows their model or serial. Usually a controller the kernel has marked "
+    "dead. Empty is the healthy state. They are missing from every table that "
+    "shows a model, which is why they get one of their own.",
+    transformations=[
+        organize(exclude=["Time", "__name__", "job", "Value", "serial"],
+                 rename={"instance": "Host", "device": "Device",
+                         "state": "Kernel state"},
+                 order=["instance", "device", "state"]),
+    ],
+    overrides=[{
+        "matcher": {"id": "byName", "options": "Kernel state"},
+        "properties": [
+            {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+            {"id": "mappings", "value": [{"type": "value", "options": {
+                "dead": {"text": "dead", "color": "red", "index": 0}}}]},
+        ],
+    }],
+    w=6, h=8, x=18, y=5,
 )
 
 
@@ -505,8 +534,10 @@ DEVICE_COLUMNS = [
 def device_column_target(key, expr, ref):
     decorated = (f"({expr}) * on(job, instance, device) group_left(model, firmware) "
                  f"nvme_logpage_device_info{{{SEL}}}")
+    # Not fmt="table": that flattens labels into columns, and joinByLabels
+    # below joins on frame labels, which would then not exist.
     return tgt(f'label_replace({decorated}, "metric", "{key}", "", "")',
-               instant=True, fmt="table", ref=ref)
+               instant=True, ref=ref)
 
 
 inventory_table = table(
@@ -557,12 +588,12 @@ namespaces_table = table(
     "Namespaces",
     [
         tgt(f'label_replace(nvme_logpage_namespace_size_bytes{{{SEL}}}, "metric", "size", "", "")',
-            instant=True, fmt="table", ref="A"),
+            instant=True, ref="A"),
         tgt(f'label_replace(nvme_logpage_namespace_used_bytes{{{SEL}}}, "metric", "used", "", "")',
-            instant=True, fmt="table", ref="B"),
+            instant=True, ref="B"),
         tgt(f'label_replace(nvme_logpage_namespace_used_bytes{{{SEL}}} / '
             f'nvme_logpage_namespace_size_bytes{{{SEL}}}, "metric", "ratio", "", "")',
-            instant=True, fmt="table", ref="C"),
+            instant=True, ref="C"),
     ],
     "Namespace size against the OCP NUSE field, which counts allocated LBAs. "
     "The gap between this and the filesystem's own usage is space the "
@@ -868,6 +899,7 @@ panels.append(row("Fleet health", [], collapsed=False, y=0))
 panels.extend(fleet)
 panels.append(pie_models)
 panels.append(warnings_table)
+panels.append(unidentified_table)
 panels.append(row("Worst offenders", [], collapsed=False, y=13))
 panels.extend([worst_wear, least_headroom, worst_wa, fastest_wear])
 panels.append(row("Inventory", [inventory_table, firmware_table, namespaces_table], y=32))
