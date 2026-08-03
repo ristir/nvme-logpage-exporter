@@ -360,9 +360,11 @@ make docker
 
 builds a `scratch`-based image containing only the statically linked
 binary and no entrypoint script. It is `linux/amd64` regardless of the
-host you build on; `make dist` cross-compiles bare binaries for both
-`amd64` and `arm64`. Run it with the devices and `/sys` mounted in from
-the outside, `--cap-add=SYS_ADMIN`, and no `--privileged`:
+host you build on. Released images are multi-arch, `linux/amd64` and
+`linux/arm64`, and published on a tag to
+`ghcr.io/ristir/nvme-logpage-exporter` and Docker Hub. Run it with the
+devices and `/sys` mounted in from the outside, `--cap-add=SYS_ADMIN`,
+and no `--privileged`:
 
 ```bash
 docker run --cap-add=SYS_ADMIN \

@@ -42,12 +42,8 @@ dist:
 clean:
 	rm -rf bin/ $(DIST_DIR)/
 
-# Cross-compiles rather than reusing `build`: a scratch image accepts a
-# host-arch binary and only fails at exec time.
-docker:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/$(BINARY) ./cmd/$(BINARY)
-	cp bin/$(BINARY) .
-	docker build -t $(BINARY):$(VERSION) . ; st=$$? ; rm -f $(BINARY) ; exit $$st
+docker: dist
+	docker build --platform linux/amd64 -t $(BINARY):$(VERSION) .
 
 # `timeout`, not backgrounding plus `kill %1`: make's shell has no job
 # control, and killing sudo does not reach the child. Nothing may be left

@@ -1,5 +1,4 @@
 .git/
 bin/
-dist/
 testdata/
 *.md

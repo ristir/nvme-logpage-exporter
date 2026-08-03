@@ -1,0 +1,44 @@
+name: Image
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - run: make dist
+
+      - run: docker buildx create --use --driver docker-container
+
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: echo "$DOCKERHUB_TOKEN" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - env:
+          HUB: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/nvme-logpage-exporter
+          GHCR: ghcr.io/${{ github.repository }}
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t "$GHCR:$GITHUB_REF_NAME" -t "$GHCR:latest" \
+            -t "$HUB:$GITHUB_REF_NAME"  -t "$HUB:latest" \
+            --push .
+
+      - if: always()
+        run: docker logout ghcr.io; docker logout
