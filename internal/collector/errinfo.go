@@ -10,12 +10,21 @@ import (
 	"github.com/ristir/nvme-logpage-exporter/internal/nvme/logpage"
 )
 
-// Eight entries. Live drives with 88 and 314 lifetime errors populated 4 and 1.
-const errorInfoSize = 512
+// Used until Identify reports ELPE, and for controllers whose Identify fails.
+const errorInfoFallbackSize = 8 * logpage.ErrorInfoEntrySize
 
 var dErrorLogRetained = desc("error_log_retained_entries",
-	"Number of entries among the first 8 the controller returns from the Error Information log, grouped by status. The log itself holds ELPE+1 entries, 64 to 256 on the hardware surveyed, so this is a sample of the most recent errors rather than the whole log. Diagnostic only: the log survives resets and says nothing about when the errors happened. See nvme_logpage_error_log_entries_total for the running total of entries ever added. status_code_type is decimal, as nvme-cli and the specification write it; status_code is hexadecimal, as this exporter's other page-label fields are.",
+	"Number of entries retained in the Error Information log, grouped by status. The whole log is read: its length comes from ELPE in Identify Controller, which is 64 to 256 entries on the hardware surveyed. Diagnostic only: the log survives resets and says nothing about when the errors happened. See nvme_logpage_error_log_entries_total for the running total of entries ever added. status_code_type is decimal, as nvme-cli and the specification write it; status_code is hexadecimal, as this exporter's other page-label fields are.",
 	"status_code_type", "status_code")
+
+// The whole log, not a fixed slice of it: nine drives here fill every one of
+// the eight entries a 512-byte read returns, so a fixed read silently truncates.
+func (e *Exporter) errorInfoSize(c nvme.Controller) int {
+	if n := e.knownErrorLogEntries(c); n > 0 {
+		return n * logpage.ErrorInfoEntrySize
+	}
+	return errorInfoFallbackSize
+}
 
 // Aggregated by status: a series per entry would be up to 256 per device.
 func (e *Exporter) collectErrorInfo(ctx context.Context, ch chan<- prometheus.Metric, c nvme.Controller) error {
@@ -24,7 +33,7 @@ func (e *Exporter) collectErrorInfo(ctx context.Context, ch chan<- prometheus.Me
 		return nil
 	}
 
-	raw, err := e.src.LogPage(ctx, c.Name, logpage.IDErrorInfo, errorInfoSize)
+	raw, err := e.src.LogPage(ctx, c.Name, logpage.IDErrorInfo, e.errorInfoSize(c))
 	if err != nil {
 		if !isDeviceError(err) {
 			e.markPageUnsupported(c, "0x01")

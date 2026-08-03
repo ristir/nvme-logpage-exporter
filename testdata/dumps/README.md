@@ -19,7 +19,7 @@ Directory name is `<vendor>-<model>`, not the original hostname.
 | `dell-p4510` | Dell Express Flash NVMe P4510 1TB SFF | VDV1DP25 | 1.2 | 0 | yes | 01 02 03 C0 | same silicon as `intel-p4510` (VID 0x8086), different firmware, different CCTEMP and NN — a parser must not key on the model string |
 | `micron-3400` | Micron_3400_MTFDKBA512TFH | P7MU002 | 1.4 | 1 | no | 01 02 03 09 | the only fixture serving the endurance group log (09); ELPE 255, so the log holds 256 entries |
 | `samsung-worn-degraded` | SAMSUNG MZVLB512HAJQ-00000 | EXA7301Q | 1.2 | 2 | no | 01 02 03 C0 | 133% and 135% used with `reliability_degraded` set — endurance above 1.0 must survive the ratio conversion |
-| `samsung-errorlog-full` | SAMSUNG MZVKW512HMJP-00000 | CXA7500Q | 1.2 | 2 | no | 01 02 03 C0 | the error log fills all eight entries the 512-byte read returns; every other fixture has an empty or nearly empty log |
+| `samsung-errorlog-full` | SAMSUNG MZVKW512HMJP-00000 | CXA7500Q | 1.2 | 2 | no | 01 02 03 C0 | the error log is full: all 64 entries the drive retains are populated, where a fixed 512-byte read would have seen 8 |
 | `samsung-saturated` | SAMSUNG MZVLB512HAJQ-00000 | EXA7301Q | 1.2 | 2 | no | 01 02 03 C0 | Percentage Used reads 255, the ceiling of the one-byte field, and Controller Busy Time is 712 billion minutes — both confirmed against `nvme-cli`, so neither may be clamped |
 | `samsung-hot-sensor` | SAMSUNG MZVLB512HAJQ-00000 | EXA7301Q | 1.2 | 2 | no | 01 02 03 C0 | sensor 2 sits at 89 and 90 C, above both WCTEMP and CCTEMP, while the composite reads 54 and 58 and the over-temperature counters stay zero — the thresholds govern the composite alone |
 

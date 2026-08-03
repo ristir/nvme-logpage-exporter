@@ -94,13 +94,12 @@ that range in one direction or the other.
   (emitted only while an activation is pending).
 - **Error Information (page 0x01):**
   `nvme_logpage_error_log_retained_entries{status_code_type,status_code}` —
-  the most recent entries, grouped by status. The exporter reads a fixed
-  512 bytes, so at most 8 entries, while the log itself holds ELPE+1 — 64
-  to 256 on the hardware surveyed. In practice that window has been enough:
-  two production drives with 88 and 314 errors over their lifetime had only
-  4 and 1 of the 8 slots populated. Diagnostic only: the log survives resets
-  and carries no timestamp, and it counts admin commands the drive rejected
-  as unimplemented, including probes from other tools on the same host.
+  every entry the log retains, grouped by status. Its length is ELPE+1 from
+  Identify Controller, 64 to 256 entries on the hardware surveyed, and the
+  read is sized to match. A fixed 512-byte read would have covered 8: one
+  drive here fills all 64. Diagnostic only: the log survives resets and
+  carries no timestamp, and it counts admin commands the drive rejected as
+  unimplemented, including probes from other tools on the same host.
 
 This has been checked against real hardware: 12 models from 5 vendors,
 28 devices across 11 hosts. On a Samsung PM9A1, all 20 comparable metrics

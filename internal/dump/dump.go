@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/ristir/nvme-logpage-exporter/internal/nvme"
+	"github.com/ristir/nvme-logpage-exporter/internal/nvme/logpage"
 )
 
 const scrubbedSerial = "SCRUBBED"
@@ -123,7 +124,7 @@ func Run(ctx context.Context, src nvme.Source, outDir string, keepSerial bool, l
 		if err := dumpIdentify(ctx, src, c.Name, dir, keepSerial, c.Serial); err != nil {
 			return err
 		}
-		if err := dumpPages(ctx, src, c.Name, dir, keepSerial, c.Serial); err != nil {
+		if err := dumpPages(ctx, src, c.Name, dir, keepSerial, c.Serial, errorLogSize(ctx, src, c.Name)); err != nil {
 			return err
 		}
 	}
@@ -133,6 +134,20 @@ func Run(ctx context.Context, src nvme.Source, outDir string, keepSerial bool, l
 		return err
 	}
 	return os.WriteFile(filepath.Join(outDir, "meta.json"), append(b, '\n'), 0o644)
+}
+
+// A fixed read truncates the log on drives that fill it, so the length comes
+// from the controller's own ELPE. Zero leaves the default in place.
+func errorLogSize(ctx context.Context, src nvme.Source, ctrl string) int {
+	raw, err := src.Identify(ctx, ctrl)
+	if err != nil {
+		return 0
+	}
+	id, err := logpage.ParseIdentify(raw)
+	if err != nil {
+		return 0
+	}
+	return id.ErrorLogEntries * logpage.ErrorInfoEntrySize
 }
 
 func dumpIdentify(ctx context.Context, src nvme.Source, ctrl, dir string, keepSerial bool, serial string) error {
@@ -155,9 +170,13 @@ func dumpIdentify(ctx context.Context, src nvme.Source, ctrl, dir string, keepSe
 	return os.WriteFile(filepath.Join(dir, "identify.bin"), raw, 0o644)
 }
 
-func dumpPages(ctx context.Context, src nvme.Source, ctrl, dir string, keepSerial bool, serial string) error {
+func dumpPages(ctx context.Context, src nvme.Source, ctrl, dir string, keepSerial bool, serial string, errorLogSize int) error {
 	for _, p := range pages {
-		raw, err := src.LogPage(ctx, ctrl, p.id, p.size)
+		size := p.size
+		if p.id == logpage.IDErrorInfo && errorLogSize > 0 {
+			size = errorLogSize
+		}
+		raw, err := src.LogPage(ctx, ctrl, p.id, size)
 		if errors.Is(err, nvme.ErrPageUnsupported) {
 			continue
 		}

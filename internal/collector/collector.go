@@ -56,6 +56,12 @@ type pageKey struct {
 	page   string
 }
 
+// deviceKey identifies a controller; serial included so a swap resets state.
+type deviceKey struct {
+	device string
+	serial string
+}
+
 type scrapeState struct {
 	mu sync.Mutex
 
@@ -66,6 +72,11 @@ type scrapeState struct {
 
 	// Asked once each; see pageKnownUnsupported for why re-asking is not free.
 	pageUnsupported map[pageKey]struct{}
+
+	// ELPE never changes for a controller, and Identify is read before the
+	// error log anyway, so the size travels through here rather than costing
+	// a second Identify per scrape.
+	errorLogEntries map[deviceKey]int
 }
 
 // New builds an Exporter.
@@ -79,6 +90,7 @@ func New(src nvme.Source, logger *slog.Logger) *Exporter {
 			errCounts:       make(map[errKey]float64),
 			logged:          make(map[errKey]struct{}),
 			pageUnsupported: map[pageKey]struct{}{},
+			errorLogEntries: map[deviceKey]int{},
 		},
 	}
 }
@@ -227,6 +239,20 @@ func (e *Exporter) markPageUnsupported(c nvme.Controller, page string) {
 	defer e.state.mu.Unlock()
 
 	e.state.pageUnsupported[pageKey{device: c.Name, serial: c.Serial, page: page}] = struct{}{}
+}
+
+func (e *Exporter) rememberErrorLogEntries(c nvme.Controller, n int) {
+	e.state.mu.Lock()
+	defer e.state.mu.Unlock()
+
+	e.state.errorLogEntries[deviceKey{device: c.Name, serial: c.Serial}] = n
+}
+
+func (e *Exporter) knownErrorLogEntries(c nvme.Controller) int {
+	e.state.mu.Lock()
+	defer e.state.mu.Unlock()
+
+	return e.state.errorLogEntries[deviceKey{device: c.Name, serial: c.Serial}]
 }
 
 // Absent is routine, not a failure.

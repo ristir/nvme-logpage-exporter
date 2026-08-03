@@ -25,6 +25,10 @@ type Identify struct {
 	// The maximum supported, not the count: never iterate it.
 	MaxNamespaces uint32
 
+	// ELPE+1: how many entries the Error Information log holds. The field is
+	// zero-based, so every controller has at least one.
+	ErrorLogEntries int
+
 	TotalCapacityBytes Uint128
 }
 
@@ -44,6 +48,7 @@ func ParseIdentify(b []byte) (*Identify, error) {
 		CritTempKelvin:     binary.LittleEndian.Uint16(b[268:270]),
 		TotalCapacityBytes: readUint128(b[280:296]),
 		MaxNamespaces:      binary.LittleEndian.Uint32(b[516:520]),
+		ErrorLogEntries:    int(b[262]) + 1,
 	}, nil
 }
 

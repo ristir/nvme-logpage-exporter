@@ -3374,7 +3374,7 @@
           "id": 35,
           "type": "table",
           "title": "Error log entries by status",
-          "description": "The most recent entries in the drive's Error Information log, grouped by status \u2014 at most 8, since the exporter reads a fixed 512 bytes while the log itself holds 64 to 256. Diagnostic only. Note that this includes admin commands rejected because the drive does not implement them \u2014 including probes from other monitoring tools on the same host \u2014 so it is not a health signal on its own.",
+          "description": "Every entry the drive's Error Information log retains, grouped by status. The log holds ELPE+1 entries, 64 to 256 on the hardware surveyed, and the exporter reads all of them. Diagnostic only. Note that this includes admin commands rejected because the drive does not implement them \u2014 including probes from other monitoring tools on the same host \u2014 so it is not a health signal on its own.",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"

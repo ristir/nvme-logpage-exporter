@@ -791,9 +791,9 @@ reliability = [
                unit="none", w=12, x=0, y=16),
     table("Error log entries by status",
           [tgt(f"nvme_logpage_error_log_retained_entries{{{SEL}}}", instant=True, fmt="table")],
-          "The most recent entries in the drive's Error Information log, "
-          "grouped by status — at most 8, since the exporter reads a fixed "
-          "512 bytes while the log itself holds 64 to 256. Diagnostic only. "
+          "Every entry the drive's Error Information log retains, grouped by "
+          "status. The log holds ELPE+1 entries, 64 to 256 on the hardware "
+          "surveyed, and the exporter reads all of them. Diagnostic only. "
           "Note that this includes admin commands rejected because the drive "
           "does not implement them — including probes from other monitoring "
           "tools on the same host — so it is not a health signal on its own.",

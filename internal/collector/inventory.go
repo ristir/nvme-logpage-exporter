@@ -112,6 +112,10 @@ func (e *Exporter) collectInventory(ctx context.Context, ch chan<- prometheus.Me
 		gauge(dCapacity, id.TotalCapacityBytes.Float64())
 	}
 	// Zero means "not reported", here and for capacity and thresholds.
+	if id.ErrorLogEntries > 0 {
+		e.rememberErrorLogEntries(c, id.ErrorLogEntries)
+	}
+
 	if id.MaxNamespaces != 0 {
 		gauge(dNamespacesMax, float64(id.MaxNamespaces))
 	}
