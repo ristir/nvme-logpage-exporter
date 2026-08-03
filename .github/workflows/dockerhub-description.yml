@@ -3,7 +3,9 @@ name: Docker Hub description
 on:
   push:
     branches: ["main"]
-    paths: ["packaging/docker/overview.md"]
+    paths:
+      - "packaging/docker/overview.md"
+      - ".github/workflows/dockerhub-description.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,17 +32,23 @@ jobs:
                 | jq -r '.token // empty')
           [ -n "$jwt" ] || { echo "docker hub login failed"; exit 1; }
 
-          scope=$(echo "$jwt" | cut -d. -f2 | base64 -d 2>/dev/null | jq -r '.scope // "?"')
-          [ "$scope" = "repo:admin" ] || {
-            echo "token scope is '$scope'; editing the description needs repo:admin"
-            exit 1
-          }
+          code=$(jq -n --rawfile d packaging/docker/overview.md '{full_description: $d}' \
+                 | curl -sS -o /tmp/resp.json -w '%{http_code}' -X PATCH -d @- \
+                     -H "Authorization: JWT $jwt" \
+                     -H 'Content-Type: application/json' \
+                     "https://hub.docker.com/v2/repositories/${DOCKERHUB_USERNAME}/nvme-logpage-exporter/")
 
-          jq -n --rawfile d packaging/docker/overview.md '{full_description: $d}' \
-            | curl -sS -f -X PATCH -d @- \
-                -H "Authorization: JWT $jwt" \
-                -H 'Content-Type: application/json' \
-                "https://hub.docker.com/v2/repositories/${DOCKERHUB_USERNAME}/nvme-logpage-exporter/" \
-            > /dev/null
+          case "$code" in
+            2*) echo "description synced" ;;
+            *)  echo "HTTP $code"
+                cat /tmp/resp.json
+                # base64url, and GNU base64 rejects it without translation and padding.
+                p=$(echo "$jwt" | cut -d. -f2 | tr '_-' '/+')
+                case $(( ${#p} % 4 )) in 2) p="$p==" ;; 3) p="$p=" ;; esac
+                echo "token scope: $(printf '%s' "$p" | base64 -d 2>/dev/null \
+                                     | jq -r '.scope // "unknown"' 2>/dev/null || echo unknown)"
+                echo "editing the description needs a token with read, write and delete"
+                exit 1 ;;
+          esac
 
           echo "description synced"
