@@ -428,12 +428,14 @@ worst_wa = table(
 
 fastest_wear = table(
     "Fastest wearing drives",
-    [tgt(f"topk($top_n, {with_model(f'(deriv(nvme_logpage_endurance_used_ratio{{{SEL}}}[6h]) * 86400 * 365)')})",
+    [tgt(f"topk($top_n, {with_model(f'(nvme_logpage_endurance_used_ratio{{{SEL}}} * 86400 * 365 / nvme_logpage_power_on_seconds_total{{{SEL}}})')})",
          instant=True, fmt="table")],
-    "Projected endurance consumed per year at the rate observed over the "
-    "last six hours. Answers 'which drive will need replacing first', which "
-    "the absolute wear figure does not: a drive at 50% that is not moving "
-    "matters less than one at 10% climbing fast.",
+    "Endurance consumed per year, averaged over the drive's whole power-on "
+    "life. Answers 'which drive will need replacing first', which the "
+    "absolute wear figure does not: a drive at 50% after eight years matters "
+    "less than one at 10% after six months. A lifetime average rather than a "
+    "recent rate, because the field is whole percents and does not move at "
+    "all over a short window.",
     transformations=[
         organize(exclude=["Time", "__name__", "job"],
                  rename={"instance": "Host", "device": "Device",
@@ -608,12 +610,13 @@ endurance = [
                "Media bytes divided by host bytes since the drive was new.",
                unit="none", w=12, x=0, y=16),
     timeseries("Projected time to endurance exhaustion",
-               [tgt(f"(1 - nvme_logpage_endurance_used_ratio{{{SEL}}}) / "
-                    f"clamp_min(deriv(nvme_logpage_endurance_used_ratio{{{SEL}}}[6h]), 1e-12)",
+               [tgt(f"nvme_logpage_power_on_seconds_total{{{SEL}}} * "
+                    f"(1 - nvme_logpage_endurance_used_ratio{{{SEL}}}) / "
+                    f"(nvme_logpage_endurance_used_ratio{{{SEL}}} > 0 < 1)",
                     "{{instance}} {{device}}")],
-               "Seconds until 100% at the rate seen over the last six hours. "
-               "Noisy over short windows and meaningless while the rate is "
-               "zero — read the trend, not the number.",
+               "Time until 100% if the drive keeps wearing at its lifetime "
+               "average. Drives that report no wear yet, and drives already "
+               "past 100%, have nothing to project and are left out.",
                unit="s", w=12, x=12, y=16),
 ]
 

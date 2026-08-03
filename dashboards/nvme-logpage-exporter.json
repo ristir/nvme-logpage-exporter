@@ -1131,7 +1131,7 @@
       "id": 14,
       "type": "table",
       "title": "Fastest wearing drives",
-      "description": "Projected endurance consumed per year at the rate observed over the last six hours. Answers 'which drive will need replacing first', which the absolute wear figure does not: a drive at 50% that is not moving matters less than one at 10% climbing fast.",
+      "description": "Endurance consumed per year, averaged over the drive's whole power-on life. Answers 'which drive will need replacing first', which the absolute wear figure does not: a drive at 50% after eight years matters less than one at 10% after six months. A lifetime average rather than a recent rate, because the field is whole percents and does not move at all over a short window.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1149,7 +1149,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk($top_n, (deriv(nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}[6h]) * 86400 * 365) * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
+          "expr": "topk($top_n, (nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} * 86400 * 365 / nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -2197,7 +2197,7 @@
           "id": 23,
           "type": "timeseries",
           "title": "Projected time to endurance exhaustion",
-          "description": "Seconds until 100% at the rate seen over the last six hours. Noisy over short windows and meaningless while the rate is zero \u2014 read the trend, not the number.",
+          "description": "Time until 100% if the drive keeps wearing at its lifetime average. Drives that report no wear yet, and drives already past 100%, have nothing to project and are left out.",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
@@ -2215,7 +2215,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "(1 - nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) / clamp_min(deriv(nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}[6h]), 1e-12)",
+              "expr": "nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} * (1 - nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) / (nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} > 0 < 1)",
               "legendFormat": "{{instance}} {{device}}",
               "range": true,
               "instant": false,
