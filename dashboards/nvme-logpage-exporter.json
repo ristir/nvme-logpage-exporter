@@ -2195,9 +2195,9 @@
         },
         {
           "id": 23,
-          "type": "timeseries",
-          "title": "Projected time to endurance exhaustion",
-          "description": "Time until 100% if the drive keeps wearing at its lifetime average. Drives that report no wear yet, and drives already past 100%, have nothing to project and are left out.",
+          "type": "table",
+          "title": "Soonest to exhaust endurance",
+          "description": "Time until 100% if the drive keeps wearing at its lifetime average. Only drives due within ten years are listed: beyond that the answer is 'never' and the number is an artifact of the field being whole percents, where a drive reading 1% projects to ninety-nine times its own age. Drives with no wear yet, and drives already past 100%, have nothing to project.",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
@@ -2215,59 +2215,118 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} * (1 - nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) / (nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} > 0 < 1)",
-              "legendFormat": "{{instance}} {{device}}",
-              "range": true,
-              "instant": false,
-              "format": "time_series",
+              "expr": "bottomk($top_n, ((nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} * (1 - nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) / (nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} > 0 < 1)) < 315360000) * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
+              "legendFormat": "",
+              "range": false,
+              "instant": true,
+              "format": "table",
               "refId": "A"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "__name__": true,
+                  "job": true
+                },
+                "renameByName": {
+                  "instance": "Host",
+                  "device": "Device",
+                  "serial": "Serial",
+                  "model": "Model",
+                  "Value": "Time left"
+                },
+                "indexByName": {
+                  "instance": 0,
+                  "device": 1,
+                  "model": 2,
+                  "serial": 3,
+                  "Value": 4
+                }
+              }
             }
           ],
           "fieldConfig": {
             "defaults": {
               "custom": {
-                "axisPlacement": "auto",
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "lineWidth": 1,
-                "pointSize": 4,
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                }
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "filterable": true,
+                "inspect": false
               },
-              "unit": "s",
-              "color": {
-                "mode": "palette-classic"
-              },
+              "mappings": [],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
+                    "color": "text",
                     "value": null
                   }
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time left"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "s"
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-text"
+                    }
+                  },
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "red",
+                          "value": null
+                        },
+                        {
+                          "color": "orange",
+                          "value": 15768000
+                        },
+                        {
+                          "color": "yellow",
+                          "value": 63072000
+                        },
+                        {
+                          "color": "green",
+                          "value": 157680000
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
           },
           "options": {
-            "legend": {
-              "calcs": [
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
+            "cellHeight": "sm",
+            "footer": {
+              "show": false
             },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": false,
+                "displayName": "Time left"
+              }
+            ]
           }
         }
       ]

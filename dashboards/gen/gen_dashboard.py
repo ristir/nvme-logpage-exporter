@@ -27,6 +27,10 @@ DS = {"type": "prometheus", "uid": "${datasource}"}
 # does not have to be threaded through thirty panels by hand.
 SEL = 'job=~"$job",instance=~"$instance",device=~"$device"'
 
+# Ten years. Past that the projection says "never", and the input is a whole
+# percent, so a drive reading 1% projects to ninety-nine times its own age.
+EXHAUSTION_HORIZON_SECONDS = 10 * 365 * 24 * 3600
+
 _id = [0]
 
 
@@ -609,15 +613,35 @@ endurance = [
                     f"nvme_logpage_written_bytes_total{{{SEL}}}", "{{instance}} {{device}}")],
                "Media bytes divided by host bytes since the drive was new.",
                unit="none", w=12, x=0, y=16),
-    timeseries("Projected time to endurance exhaustion",
-               [tgt(f"nvme_logpage_power_on_seconds_total{{{SEL}}} * "
-                    f"(1 - nvme_logpage_endurance_used_ratio{{{SEL}}}) / "
-                    f"(nvme_logpage_endurance_used_ratio{{{SEL}}} > 0 < 1)",
-                    "{{instance}} {{device}}")],
-               "Time until 100% if the drive keeps wearing at its lifetime "
-               "average. Drives that report no wear yet, and drives already "
-               "past 100%, have nothing to project and are left out.",
-               unit="s", w=12, x=12, y=16),
+    table("Soonest to exhaust endurance",
+          [tgt(f"bottomk($top_n, {with_model(f'((nvme_logpage_power_on_seconds_total{{{SEL}}} * (1 - nvme_logpage_endurance_used_ratio{{{SEL}}}) / (nvme_logpage_endurance_used_ratio{{{SEL}}} > 0 < 1)) < {EXHAUSTION_HORIZON_SECONDS})')})",
+               instant=True, fmt="table")],
+          "Time until 100% if the drive keeps wearing at its lifetime average. "
+          "Only drives due within ten years are listed: beyond that the answer "
+          "is 'never' and the number is an artifact of the field being whole "
+          "percents, where a drive reading 1% projects to ninety-nine times its "
+          "own age. Drives with no wear yet, and drives already past 100%, have "
+          "nothing to project.",
+          transformations=[
+              organize(exclude=["Time", "__name__", "job"],
+                       rename={"instance": "Host", "device": "Device",
+                               "serial": "Serial", "model": "Model",
+                               "Value": "Time left"},
+                       order=["instance", "device", "model", "serial", "Value"]),
+          ],
+          overrides=[{
+              "matcher": {"id": "byName", "options": "Time left"},
+              "properties": [
+                  {"id": "unit", "value": "s"},
+                  {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                  {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                      {"color": "red", "value": None},
+                      {"color": "orange", "value": 15768000},
+                      {"color": "yellow", "value": 63072000},
+                      {"color": "green", "value": 157680000}]}},
+              ],
+          }],
+          w=12, h=8, x=12, y=16, sort_by="Time left", sort_desc=False),
 ]
 
 temperature = [
