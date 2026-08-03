@@ -31,6 +31,10 @@ SEL = 'job=~"$job",instance=~"$instance",device=~"$device"'
 # percent, so a drive reading 1% projects to ninety-nine times its own age.
 EXHAUSTION_HORIZON_SECONDS = 10 * 365 * 24 * 3600
 
+# Below a day of power-on the wear field has not had time to leave zero, and
+# dividing by the elapsed time turns its first whole percent into nonsense.
+MIN_POWER_ON_SECONDS = 86400
+
 _id = [0]
 
 
@@ -432,14 +436,18 @@ worst_wa = table(
 
 fastest_wear = table(
     "Fastest wearing drives",
-    [tgt(f"topk($top_n, {with_model(f'(nvme_logpage_endurance_used_ratio{{{SEL}}} * 86400 * 365 / nvme_logpage_power_on_seconds_total{{{SEL}}})')})",
+    [tgt(f"topk($top_n, {with_model(f'(nvme_logpage_endurance_used_ratio{{{SEL}}} * 86400 * 365 / (nvme_logpage_power_on_seconds_total{{{SEL}}} > {MIN_POWER_ON_SECONDS}))')})",
          instant=True, fmt="table")],
     "Endurance consumed per year, averaged over the drive's whole power-on "
     "life. Answers 'which drive will need replacing first', which the "
     "absolute wear figure does not: a drive at 50% after eight years matters "
     "less than one at 10% after six months. A lifetime average rather than a "
     "recent rate, because the field is whole percents and does not move at "
-    "all over a short window.",
+    "all over a short window. That same quantisation sets the accuracy: the "
+    "relative error is roughly half a percent divided by the wear figure, so "
+    "a drive reading 2% carries about a quarter, and one reading 50% about a "
+    "fiftieth. Drives up for less than a day are left out; for the rest, "
+    "check Age in the per-device table before trusting a young drive's rate.",
     transformations=[
         organize(exclude=["Time", "__name__", "job"],
                  rename={"instance": "Host", "device": "Device",
@@ -608,6 +616,41 @@ endurance = [
                "rate beside it to see amplification as it happens rather than "
                "as a lifetime average.",
                unit="Bps", w=12, x=12, y=8),
+    table("Warranty budget consumed",
+          [tgt(f"topk($top_n, {with_model(f'(nvme_logpage_written_bytes_total{{{SEL}}} / nvme_logpage_endurance_estimate_bytes{{{SEL}}})')})",
+               instant=True, fmt="table")],
+          "Host bytes written as a fraction of the drive's own Endurance "
+          "Estimate, which is the warranty budget and comes from the OCP log, "
+          "so only drives serving page 0xC0 appear. Unlike the wear field this "
+          "is computed from two exact counters and does not move in whole "
+          "percent steps. It answers a different question, and the two "
+          "disagree on purpose: a Micron 7450 that has spent 20% of its "
+          "warranty reports 4% wear, because the datasheet figure is "
+          "deliberately conservative and the NAND outlives it. Not comparable "
+          "across vendors either \u2014 measured here, the same field works out "
+          "to 1.0 DWPD over five years on a Micron 7450 and 4.1 on a Samsung "
+          "PM9A3, matching the Micron datasheet but quadrupling the Samsung "
+          "one.",
+          transformations=[
+              organize(exclude=["Time", "__name__", "job"],
+                       rename={"instance": "Host", "device": "Device",
+                               "serial": "Serial", "model": "Model",
+                               "Value": "Warranty used"},
+                       order=["instance", "device", "model", "serial", "Value"]),
+          ],
+          overrides=[{
+              "matcher": {"id": "byName", "options": "Warranty used"},
+              "properties": [
+                  {"id": "unit", "value": "percentunit"},
+                  {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                  {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                      {"color": "green", "value": None},
+                      {"color": "yellow", "value": 0.5},
+                      {"color": "orange", "value": 0.8},
+                      {"color": "red", "value": 1.0}]}},
+              ],
+          }],
+          w=12, h=8, x=0, y=24, sort_by="Warranty used"),
     timeseries("Write amplification (lifetime)",
                [tgt(f"nvme_logpage_media_written_bytes_total{{{SEL}}} / on(job, instance, device) "
                     f"nvme_logpage_written_bytes_total{{{SEL}}}", "{{instance}} {{device}}")],
