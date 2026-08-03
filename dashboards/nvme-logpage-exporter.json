@@ -367,7 +367,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "count(nvme_logpage_composite_temperature_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} >= on(instance, device) nvme_logpage_composite_temperature_warning_threshold_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) or vector(0)",
+          "expr": "count(nvme_logpage_composite_temperature_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} >= on(job, instance, device) nvme_logpage_composite_temperature_warning_threshold_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) or vector(0)",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -732,7 +732,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk($top_n, nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} * on(instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
+          "expr": "topk($top_n, nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -877,7 +877,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "bottomk($top_n, (nvme_logpage_composite_temperature_warning_threshold_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} - on(instance, device) nvme_logpage_composite_temperature_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
+          "expr": "bottomk($top_n, (nvme_logpage_composite_temperature_warning_threshold_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} - on(job, instance, device) nvme_logpage_composite_temperature_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -1013,7 +1013,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk($top_n, (nvme_logpage_media_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / on(instance, device) nvme_logpage_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
+          "expr": "topk($top_n, (nvme_logpage_media_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / on(job, instance, device) nvme_logpage_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -1149,7 +1149,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk($top_n, (deriv(nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}[6h]) * 86400 * 365) * on(instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
+          "expr": "topk($top_n, (deriv(nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}[6h]) * 86400 * 365) * on(job, instance, device) group_left(model) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -1297,7 +1297,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "label_replace((nvme_logpage_capacity_bytes{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"capacity\", \"\", \"\")",
+              "expr": "label_replace((nvme_logpage_capacity_bytes{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"capacity\", \"\", \"\")",
               "legendFormat": "",
               "range": false,
               "instant": true,
@@ -1310,7 +1310,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "label_replace((nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / 86400) * on(instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"age\", \"\", \"\")",
+              "expr": "label_replace((nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / 86400) * on(job, instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"age\", \"\", \"\")",
               "legendFormat": "",
               "range": false,
               "instant": true,
@@ -1323,7 +1323,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "label_replace((nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"endurance\", \"\", \"\")",
+              "expr": "label_replace((nvme_logpage_endurance_used_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"endurance\", \"\", \"\")",
               "legendFormat": "",
               "range": false,
               "instant": true,
@@ -1336,7 +1336,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "label_replace((nvme_logpage_available_spare_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"spare\", \"\", \"\")",
+              "expr": "label_replace((nvme_logpage_available_spare_ratio{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"spare\", \"\", \"\")",
               "legendFormat": "",
               "range": false,
               "instant": true,
@@ -1349,7 +1349,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "label_replace((nvme_logpage_composite_temperature_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"temp\", \"\", \"\")",
+              "expr": "label_replace((nvme_logpage_composite_temperature_celsius{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"temp\", \"\", \"\")",
               "legendFormat": "",
               "range": false,
               "instant": true,
@@ -1362,7 +1362,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "label_replace((nvme_logpage_media_errors_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"media_errors\", \"\", \"\")",
+              "expr": "label_replace((nvme_logpage_media_errors_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}) * on(job, instance, device) group_left(model, firmware) nvme_logpage_device_info{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}, \"metric\", \"media_errors\", \"\", \"\")",
               "legendFormat": "",
               "range": false,
               "instant": true,
@@ -2138,7 +2138,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "nvme_logpage_media_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / on(instance, device) nvme_logpage_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}",
+              "expr": "nvme_logpage_media_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / on(job, instance, device) nvme_logpage_written_bytes_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"}",
               "legendFormat": "{{instance}} {{device}}",
               "range": true,
               "instant": false,

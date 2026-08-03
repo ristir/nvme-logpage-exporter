@@ -257,7 +257,7 @@ fleet = [
          thresholds=[{"color": "green", "value": None}, {"color": "red", "value": 1}],
          color_mode="background", text_size=40),
     stat("Over own temp threshold",
-         f"count(nvme_logpage_composite_temperature_celsius{{{SEL}}} >= on(instance, device) "
+         f"count(nvme_logpage_composite_temperature_celsius{{{SEL}}} >= on(job, instance, device) "
          f"nvme_logpage_composite_temperature_warning_threshold_celsius{{{SEL}}}) or vector(0)",
          "Devices at or above the warning temperature the controller itself "
          "reports. Compared against each drive's own threshold, not a fixed "
@@ -328,7 +328,7 @@ warnings_table = table(
 # five hundred. `group_left(model)` carries the model across from the info
 # metric, which is the only place it exists.
 def with_model(expr):
-    return (f"{expr} * on(instance, device) group_left(model) "
+    return (f"{expr} * on(job, instance, device) group_left(model) "
             f"nvme_logpage_device_info{{{SEL}}}")
 
 
@@ -365,7 +365,7 @@ worst_wear = table(
 
 least_headroom = table(
     "Least temperature headroom",
-    [tgt(f"bottomk($top_n, {with_model(f'(nvme_logpage_composite_temperature_warning_threshold_celsius{{{SEL}}} - on(instance, device) nvme_logpage_composite_temperature_celsius{{{SEL}}})')})",
+    [tgt(f"bottomk($top_n, {with_model(f'(nvme_logpage_composite_temperature_warning_threshold_celsius{{{SEL}}} - on(job, instance, device) nvme_logpage_composite_temperature_celsius{{{SEL}}})')})",
          instant=True, fmt="table")],
     "Degrees left before each drive reaches the warning temperature it "
     "reports for itself. A negative value means the drive is already over "
@@ -397,7 +397,7 @@ least_headroom = table(
 
 worst_wa = table(
     "Highest write amplification",
-    [tgt(f"topk($top_n, {with_model(f'(nvme_logpage_media_written_bytes_total{{{SEL}}} / on(instance, device) nvme_logpage_written_bytes_total{{{SEL}}})')})",
+    [tgt(f"topk($top_n, {with_model(f'(nvme_logpage_media_written_bytes_total{{{SEL}}} / on(job, instance, device) nvme_logpage_written_bytes_total{{{SEL}}})')})",
          instant=True, fmt="table")],
     "Bytes written to the NAND divided by bytes sent by the host — lifetime "
     "average, from the OCP log. Only drives exposing page 0xC0 appear. A "
@@ -489,7 +489,7 @@ DEVICE_COLUMNS = [
 
 
 def device_column_target(key, expr, ref):
-    decorated = (f"({expr}) * on(instance, device) group_left(model, firmware) "
+    decorated = (f"({expr}) * on(job, instance, device) group_left(model, firmware) "
                  f"nvme_logpage_device_info{{{SEL}}}")
     return tgt(f'label_replace({decorated}, "metric", "{key}", "", "")',
                instant=True, fmt="table", ref=ref)
@@ -603,7 +603,7 @@ endurance = [
                "as a lifetime average.",
                unit="Bps", w=12, x=12, y=8),
     timeseries("Write amplification (lifetime)",
-               [tgt(f"nvme_logpage_media_written_bytes_total{{{SEL}}} / on(instance, device) "
+               [tgt(f"nvme_logpage_media_written_bytes_total{{{SEL}}} / on(job, instance, device) "
                     f"nvme_logpage_written_bytes_total{{{SEL}}}", "{{instance}} {{device}}")],
                "Media bytes divided by host bytes since the drive was new.",
                unit="none", w=12, x=0, y=16),
