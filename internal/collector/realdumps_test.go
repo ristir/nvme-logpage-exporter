@@ -24,6 +24,35 @@ type ctrlExpectation struct {
 }
 
 var realDumpExpectations = map[string]map[string]ctrlExpectation{
+	"samsung-hot-sensor": {
+		// Sensor 2 sits at 89 and 90 C, above both WCTEMP and CCTEMP, while the
+		// composite reads 54 and 58 and the over-temperature counters stay zero:
+		// the thresholds apply to the composite alone.
+		"nvme0": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+		"nvme1": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+	},
+	"samsung-worn-degraded": {
+		// SAMSUNG MZVLB512HAJQ, 133% and 135% used with reliability_degraded set.
+		"nvme0": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+		"nvme1": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+	},
+	"samsung-errorlog-full": {
+		// SAMSUNG MZVKW512HMJP, the only fixture whose error log fills all
+		// eight entries the exporter reads.
+		"nvme0": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+		"nvme1": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+	},
+	"samsung-saturated": {
+		// Percentage Used reads 255, the maximum the one-byte field holds, and
+		// Controller Busy Time is 712 billion minutes. Both confirmed by nvme-cli.
+		"nvme0": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+		"nvme1": {sensors: 2, maxNamespaces: 1, namespaces: 1},
+	},
+	"micron-3400": {
+		// Micron_3400_MTFDKBA512TFH, healthy, one sensor, ELPE 255.
+		"nvme0": {sensors: 1, maxNamespaces: 1, namespaces: 1},
+		"nvme1": {sensors: 1, maxNamespaces: 1, namespaces: 1},
+	},
 	"samsung-pm9a1": {
 		// SAMSUNG MZVL2512HCJQ-00B07, client drive, no OCP, spec 1.3.
 		"nvme0": {sensors: 2, maxNamespaces: 1, namespaces: 1},
@@ -214,6 +243,24 @@ var ocpExpectations = map[string]map[string]ocpExpectation{
 		"nvme1": {present: false},
 	},
 	"dell-p4510": {
+		"nvme0": {present: false},
+		"nvme1": {present: false},
+	},
+	// These Samsung client drives answer 0xC0 with data of their own, the same
+	// way the Intel and Dell above do.
+	"samsung-hot-sensor": {
+		"nvme0": {present: false},
+		"nvme1": {present: false},
+	},
+	"samsung-worn-degraded": {
+		"nvme0": {present: false},
+		"nvme1": {present: false},
+	},
+	"samsung-errorlog-full": {
+		"nvme0": {present: false},
+		"nvme1": {present: false},
+	},
+	"samsung-saturated": {
 		"nvme0": {present: false},
 		"nvme1": {present: false},
 	},

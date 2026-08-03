@@ -17,7 +17,16 @@ Directory name is `<vendor>-<model>`, not the original hostname.
 | `kioxia-kcd8` | KIOXIA KCD8XRUG1T92 | 0105 | 1.4 | 0 | yes | 01 02 03 C0 | zero sensors with real OCP pages |
 | `intel-p4510` | INTEL SSDPE2KX010T8 | VDV10184 | 1.2 | 0 | yes | 01 02 03 C0 | `MaxNamespaces` (NN) = 128, exactly one real namespace exists |
 | `dell-p4510` | Dell Express Flash NVMe P4510 1TB SFF | VDV1DP25 | 1.2 | 0 | yes | 01 02 03 C0 | same silicon as `intel-p4510` (VID 0x8086), different firmware, different CCTEMP and NN — a parser must not key on the model string |
+| `micron-3400` | Micron_3400_MTFDKBA512TFH | P7MU002 | 1.4 | 1 | no | 01 02 03 09 | the only fixture serving the endurance group log (09); ELPE 255, so the log holds 256 entries |
+| `samsung-worn-degraded` | SAMSUNG MZVLB512HAJQ-00000 | EXA7301Q | 1.2 | 2 | no | 01 02 03 C0 | 133% and 135% used with `reliability_degraded` set — endurance above 1.0 must survive the ratio conversion |
+| `samsung-errorlog-full` | SAMSUNG MZVKW512HMJP-00000 | CXA7500Q | 1.2 | 2 | no | 01 02 03 C0 | the error log fills all eight entries the 512-byte read returns; every other fixture has an empty or nearly empty log |
+| `samsung-saturated` | SAMSUNG MZVLB512HAJQ-00000 | EXA7301Q | 1.2 | 2 | no | 01 02 03 C0 | Percentage Used reads 255, the ceiling of the one-byte field, and Controller Busy Time is 712 billion minutes — both confirmed against `nvme-cli`, so neither may be clamped |
+| `samsung-hot-sensor` | SAMSUNG MZVLB512HAJQ-00000 | EXA7301Q | 1.2 | 2 | no | 01 02 03 C0 | sensor 2 sits at 89 and 90 C, above both WCTEMP and CCTEMP, while the composite reads 54 and 58 and the over-temperature counters stay zero — the thresholds govern the composite alone |
 
-`synthetic-samsung` is hand-built, not a real dump; existing unit tests
-depend on its exact byte layout. See `internal/collector/realdumps_test.go`
+The four Samsung fixtures above answer page 0xC0 with data of their own
+whose GUID is not the OCP one, the same way `intel-p4510` and `dell-p4510`
+do, so the parser must reject them on the GUID rather than on the model.
+
+`synthetic-samsung` and `synthetic-ocp` are hand-built, not real dumps;
+existing unit tests depend on their exact byte layout. See `internal/collector/realdumps_test.go`
 for the test that consumes the fixtures above.
