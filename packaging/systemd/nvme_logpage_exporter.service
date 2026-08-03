@@ -1,0 +1,35 @@
+[Unit]
+Description=NVMe logpage exporter
+Documentation=https://github.com/ristir/nvme-logpage-exporter
+After=network-online.target
+
+[Service]
+Type=simple
+User=nvme_logpage
+Group=nvme_logpage
+ExecStart=/usr/local/bin/nvme_logpage_exporter --web.listen-address=:9683
+Restart=on-failure
+RestartSec=5s
+
+# Needed for NVME_IOCTL_ADMIN_CMD. Separately from this, the group above
+# grants nothing unless the udev rule is installed too.
+AmbientCapabilities=CAP_SYS_ADMIN
+CapabilityBoundingSet=CAP_SYS_ADMIN
+NoNewPrivileges=true
+
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# Includes ioctl. Tightening this breaks the passthrough entirely.
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

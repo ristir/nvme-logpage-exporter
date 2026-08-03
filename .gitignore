@@ -1,0 +1,5 @@
+/bin/
+/nvme_logpage_exporter
+*.test
+/dist/
+.DS_Store

@@ -1,0 +1,21 @@
+{
+  "controllers": [
+    {
+      "dev_path": "/dev/nvme0",
+      "firmware": "0001",
+      "model": "SYNTHETIC OCP TESTDEV",
+      "name": "nvme0",
+      "serial": "SCRUBBED"
+    }
+  ],
+  "namespaces": {
+    "nvme0": [
+      {
+        "controller": "nvme0",
+        "name": "nvme0n1",
+        "sector_bytes": 512,
+        "size_bytes": 1000204886016
+      }
+    ]
+  }
+}

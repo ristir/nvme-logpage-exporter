@@ -1,0 +1,5 @@
+# The controller node (/dev/nvme0) is where admin ioctls go, and it defaults
+# to 0600 root:root — so group membership alone grants nothing without this
+# rule. A dedicated group rather than `disk`, which also owns every namespace
+# block device on the host.
+KERNEL=="nvme[0-9]*", SUBSYSTEM=="nvme", GROUP="nvme_logpage", MODE="0640"

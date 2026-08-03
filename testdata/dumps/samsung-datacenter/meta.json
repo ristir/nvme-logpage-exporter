@@ -1,0 +1,36 @@
+{
+  "controllers": [
+    {
+      "name": "nvme0",
+      "dev_path": "/dev/nvme0",
+      "model": "SAMSUNG MZQL21T9HCJR-00A07",
+      "firmware": "GDC5902Q",
+      "serial": "SCRUBBED"
+    },
+    {
+      "name": "nvme1",
+      "dev_path": "/dev/nvme1",
+      "model": "SAMSUNG MZQLB1T9HAJR-00007",
+      "firmware": "EDA5502Q",
+      "serial": "SCRUBBED"
+    }
+  ],
+  "namespaces": {
+    "nvme0": [
+      {
+        "name": "nvme0n1",
+        "controller": "nvme0",
+        "size_bytes": 1920383410176,
+        "sector_bytes": 512
+      }
+    ],
+    "nvme1": [
+      {
+        "name": "nvme1n1",
+        "controller": "nvme1",
+        "size_bytes": 1920383410176,
+        "sector_bytes": 512
+      }
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+# HELP nvme_logpage_available_spare_ratio Available spare capacity as a fraction of the original, 0..1.
+# TYPE nvme_logpage_available_spare_ratio gauge
+nvme_logpage_available_spare_ratio{device="nvme0",serial="SYNTHETIC0000001"} 1
+# HELP nvme_logpage_available_spare_threshold_ratio Spare capacity threshold below which the controller raises a warning, 0..1.
+# TYPE nvme_logpage_available_spare_threshold_ratio gauge
+nvme_logpage_available_spare_threshold_ratio{device="nvme0",serial="SYNTHETIC0000001"} 0.1
+# HELP nvme_logpage_composite_temperature_celsius Composite temperature in degrees Celsius, as reported by the controller.
+# TYPE nvme_logpage_composite_temperature_celsius gauge
+nvme_logpage_composite_temperature_celsius{device="nvme0",serial="SYNTHETIC0000001"} 30.850000000000023
+# HELP nvme_logpage_controller_busy_seconds_total Time the controller spent processing commands, in seconds. The specification field is in minutes.
+# TYPE nvme_logpage_controller_busy_seconds_total counter
+nvme_logpage_controller_busy_seconds_total{device="nvme0",serial="SYNTHETIC0000001"} 86880
+# HELP nvme_logpage_critical_temperature_seconds_total Time in seconds spent above the critical temperature threshold. The specification field is in minutes.
+# TYPE nvme_logpage_critical_temperature_seconds_total counter
+nvme_logpage_critical_temperature_seconds_total{device="nvme0",serial="SYNTHETIC0000001"} 180
+# HELP nvme_logpage_critical_warning_flag A bit of the Critical Warning field from the health log: 1 if set.
+# TYPE nvme_logpage_critical_warning_flag gauge
+nvme_logpage_critical_warning_flag{device="nvme0",flag="persistent_memory_ro",serial="SYNTHETIC0000001"} 0
+nvme_logpage_critical_warning_flag{device="nvme0",flag="read_only",serial="SYNTHETIC0000001"} 0
+nvme_logpage_critical_warning_flag{device="nvme0",flag="reliability_degraded",serial="SYNTHETIC0000001"} 1
+nvme_logpage_critical_warning_flag{device="nvme0",flag="spare_below_threshold",serial="SYNTHETIC0000001"} 1
+nvme_logpage_critical_warning_flag{device="nvme0",flag="temperature",serial="SYNTHETIC0000001"} 0
+nvme_logpage_critical_warning_flag{device="nvme0",flag="volatile_backup_failed",serial="SYNTHETIC0000001"} 0
+# HELP nvme_logpage_endurance_used_ratio Consumed write endurance as a fraction, 0..1. May exceed 1: the specification allows values above 100 percent.
+# TYPE nvme_logpage_endurance_used_ratio gauge
+nvme_logpage_endurance_used_ratio{device="nvme0",serial="SYNTHETIC0000001"} 0.02
+# HELP nvme_logpage_power_on_seconds_total Power-on time in seconds. The specification field is in hours.
+# TYPE nvme_logpage_power_on_seconds_total counter
+nvme_logpage_power_on_seconds_total{device="nvme0",serial="SYNTHETIC0000001"} 6.6384e+06
+# HELP nvme_logpage_read_bytes_total Bytes read by the host. Converted from data units, multiplier 512000.
+# TYPE nvme_logpage_read_bytes_total counter
+nvme_logpage_read_bytes_total{device="nvme0",serial="SYNTHETIC0000001"} 8.766669824e+12
+# HELP nvme_logpage_temperature_celsius Temperature in degrees Celsius of an individual numbered sensor (1..8). See nvme_logpage_composite_temperature_celsius for the composite reading.
+# TYPE nvme_logpage_temperature_celsius gauge
+nvme_logpage_temperature_celsius{device="nvme0",sensor="1",serial="SYNTHETIC0000001"} 30.850000000000023
+nvme_logpage_temperature_celsius{device="nvme0",sensor="2",serial="SYNTHETIC0000001"} 29.850000000000023
+# HELP nvme_logpage_warning_temperature_seconds_total Time in seconds spent above the warning temperature threshold. The specification field is in minutes.
+# TYPE nvme_logpage_warning_temperature_seconds_total counter
+nvme_logpage_warning_temperature_seconds_total{device="nvme0",serial="SYNTHETIC0000001"} 420
+# HELP nvme_logpage_written_bytes_total Bytes written by the host. Converted from data units, multiplier 512000.
+# TYPE nvme_logpage_written_bytes_total counter
+nvme_logpage_written_bytes_total{device="nvme0",serial="SYNTHETIC0000001"} 1.3398928896e+13

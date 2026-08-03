@@ -1,0 +1,36 @@
+{
+  "controllers": [
+    {
+      "name": "nvme0",
+      "dev_path": "/dev/nvme0",
+      "model": "KIOXIA KCD8XRUG1T92",
+      "firmware": "0105",
+      "serial": "SCRUBBED"
+    },
+    {
+      "name": "nvme1",
+      "dev_path": "/dev/nvme1",
+      "model": "KIOXIA KCD8XRUG1T92",
+      "firmware": "0105",
+      "serial": "SCRUBBED"
+    }
+  ],
+  "namespaces": {
+    "nvme0": [
+      {
+        "name": "nvme0n1",
+        "controller": "nvme0",
+        "size_bytes": 1920383410176,
+        "sector_bytes": 512
+      }
+    ],
+    "nvme1": [
+      {
+        "name": "nvme1n1",
+        "controller": "nvme1",
+        "size_bytes": 1920383410176,
+        "sector_bytes": 512
+      }
+    ]
+  }
+}

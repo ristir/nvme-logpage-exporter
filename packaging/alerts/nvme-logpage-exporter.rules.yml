@@ -1,0 +1,295 @@
+# Alerting rules for nvme_logpage_exporter. Starting points, not a drop-in
+# configuration: read each rule before deploying it.
+#
+# Works with Prometheus and with vmalert. Every rule carries only a `severity`
+# label; routing labels differ per organisation.
+#
+# A dead controller raises both NVMeControllerDead (critical) and
+# NVMeControllerNotLive (warning), because the second is built on a boolean
+# that carries no state label. Suppress the warning rather than weakening
+# either rule:
+#
+#   inhibit_rules:
+#     - source_matchers: [alertname="NVMeControllerDead"]
+#       target_matchers: [alertname="NVMeControllerNotLive"]
+#       equal: [instance, device, serial]
+#
+# Two metrics are deliberately left un-alerted.
+# nvme_logpage_error_log_entries_total counts admin commands the drive
+# rejected, including ones rejected only because it does not implement them —
+# any monitoring tool probing an optional page adds to it. Write amplification
+# is a capacity planning input, not a fault.
+groups:
+  - name: nvme-logpage-exporter.critical
+    rules:
+      - alert: NVMeCriticalWarning
+        expr: nvme_logpage_critical_warning_flag{flag!="temperature"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} reports
+            critical warning "{{ $labels.flag }}"
+          description: >-
+            The controller set the {{ $labels.flag }} bit in its health log.
+            Serial {{ $labels.serial }}.
+            read_only means the drive has placed itself in read-only mode
+            and the data on it is at immediate risk.
+            reliability_degraded means the controller no longer trusts its
+            own media.
+            spare_below_threshold means the spare block pool has fallen
+            past the controller's own threshold.
+            volatile_backup_failed means power-loss protection is not
+            working, so an unexpected power cut will lose in-flight writes.
+
+      - alert: NVMeSpareBelowThreshold
+        expr: >-
+          nvme_logpage_available_spare_ratio
+            < on (instance, device, serial)
+          nvme_logpage_available_spare_threshold_ratio
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} is below its
+            own spare threshold
+          description: >-
+            Spare capacity is {{ $value | humanizePercentage }}, under the
+            threshold this controller reports for itself. The drive is
+            running out of blocks to retire failures into. Serial
+            {{ $labels.serial }}.
+
+      - alert: NVMeEnduranceExhausted
+        expr: nvme_logpage_endurance_used_ratio >= 1
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} has consumed
+            its rated endurance
+          description: >-
+            Endurance used is {{ $value | humanizePercentage }}. The
+            specification permits values above 100%, and drives do keep
+            working past it — but past this point the manufacturer makes no
+            further claim about how long. Replace on a schedule you choose
+            rather than on one the drive chooses. Serial
+            {{ $labels.serial }}.
+
+      # max_over_time minus min_over_time, never increase(): these counters
+      # carry the drive's whole lifetime, so on a host deployed less than the
+      # window ago increase() reports all of it as if it just happened.
+      # Measured on a fresh deployment, and for a critical rule that means
+      # paging on every new host.
+      - alert: NVMeMediaErrors
+        expr: >-
+          max_over_time(nvme_logpage_media_errors_total[1h])
+            - min_over_time(nvme_logpage_media_errors_total[1h])
+          > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} reported
+            unrecovered media errors
+          description: >-
+            {{ $value | printf "%.0f" }} data integrity errors in the last
+            hour that the controller could not correct. Serial
+            {{ $labels.serial }}.
+
+      # The one place the state label is safe to alert on: the driver never
+      # leaves "dead" on its own, so the series cannot flap.
+      - alert: NVMeControllerDead
+        expr: nvme_logpage_controller_state{state="dead"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} is dead
+          description: >-
+            The kernel driver has marked this controller dead and will not
+            retry. Any data on it is inaccessible until the drive is reset
+            or replaced. Serial {{ $labels.serial }}.
+
+      - alert: NVMeOverCriticalTemperature
+        expr: >-
+          nvme_logpage_composite_temperature_celsius
+            >= on (instance, device, serial)
+          nvme_logpage_composite_temperature_critical_threshold_celsius
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} is at its
+            critical temperature
+          description: >-
+            {{ $value | printf "%.1f" }} C, at or above the critical
+            threshold this controller reports for itself. Controllers
+            throttle hard or shut down at this point. Check airflow before
+            assuming the drive is at fault. Serial {{ $labels.serial }}.
+
+  - name: nvme-logpage-exporter.warning
+    rules:
+      - alert: NVMeEnduranceHigh
+        expr: nvme_logpage_endurance_used_ratio >= 0.85
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} is at
+            {{ $value | humanizePercentage }} endurance
+          description: >-
+            Time to plan a replacement. Serial {{ $labels.serial }}.
+
+      # Seven days because the source field is whole percent: it moves in 1%
+      # steps that can be weeks apart, and a shorter window reads either zero
+      # or a single-step spike. Silent for the first week after deployment.
+      - alert: NVMeEnduranceExhaustionPredicted
+        expr: >-
+          (1 - nvme_logpage_endurance_used_ratio)
+            / clamp_min(deriv(nvme_logpage_endurance_used_ratio[7d]), 1e-12)
+          < 90 * 86400
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} is projected
+            to exhaust its endurance within 90 days
+          description: >-
+            At the wear rate observed over the last seven days the drive
+            reaches 100% in roughly
+            {{ $value | humanizeDuration }}. Serial {{ $labels.serial }}.
+
+      # Fires on the host, not the drive: redundancy lives at that level, and
+      # identical drives under identical load reach the end together.
+      - alert: NVMeCorrelatedWear
+        expr: >-
+          count by (instance) (
+            (1 - nvme_logpage_endurance_used_ratio)
+              / clamp_min(deriv(nvme_logpage_endurance_used_ratio[7d]), 1e-12)
+            < 180 * 86400
+          ) >= 2
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            {{ $value | printf "%.0f" }} NVMe drives on
+            {{ $labels.instance }} are projected to wear out within 180 days
+            of each other
+          description: >-
+            Identical drives under an identical workload reach the end of
+            their endurance at the same time. If these back the same array,
+            replacing them one at a time on a schedule beats replacing them
+            all at once unplanned. Stagger the replacements.
+
+      - alert: NVMeControllerNotLive
+        expr: nvme_logpage_controller_live == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} has not been
+            live for 15 minutes
+          description: >-
+            The kernel reports this controller as something other than live.
+            For which state exactly, query
+            nvme_logpage_controller_state{device="{{ $labels.device }}"} —
+            "dead" means the driver has given up on it entirely, "resetting"
+            and "connecting" mean it is stuck mid-recovery, "deleting" means
+            something is removing it. A controller that is not live refuses
+            admin commands, so any read failures reported for it follow from
+            this rather than from the exporter. Serial {{ $labels.serial }}.
+
+      - alert: NVMeOverWarningTemperature
+        expr: >-
+          nvme_logpage_composite_temperature_celsius
+            >= on (instance, device, serial)
+          nvme_logpage_composite_temperature_warning_threshold_celsius
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} is above its
+            own warning temperature
+          description: >-
+            {{ $value | printf "%.1f" }} C, sustained for half an hour, at
+            or above the warning threshold this controller reports for
+            itself. Serial {{ $labels.serial }}.
+
+      - alert: NVMeUncorrectableReadErrors
+        expr: >-
+          max_over_time(nvme_logpage_uncorrectable_read_errors_total[6h])
+            - min_over_time(nvme_logpage_uncorrectable_read_errors_total[6h])
+          > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} reported
+            uncorrectable read errors
+          description: >-
+            {{ $value | printf "%.0f" }} in the last six hours, from the OCP
+            extended health log. Serial {{ $labels.serial }}.
+
+      - alert: NVMeUnsafeShutdowns
+        expr: >-
+          max_over_time(nvme_logpage_unsafe_shutdowns_total[24h])
+            - min_over_time(nvme_logpage_unsafe_shutdowns_total[24h])
+          > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            NVMe {{ $labels.device }} on {{ $labels.instance }} recorded an
+            unsafe shutdown
+          description: >-
+            {{ $value | printf "%.0f" }} in the last 24 hours. The drive
+            lost power with writes in flight. If this tracks the power cycle
+            count, the host is not shutting the drive down cleanly — check
+            the shutdown path before suspecting the hardware. Serial
+            {{ $labels.serial }}.
+
+  - name: nvme-logpage-exporter.self
+    rules:
+      - alert: NVMeExporterDeviceUnreadable
+        expr: nvme_logpage_scrape_success == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: >-
+            nvme_logpage_exporter cannot read {{ $labels.device }} on
+            {{ $labels.instance }}
+          description: >-
+            Check nvme_logpage_errors_total{reason} for this device.
+            "open" means the device file could not be opened — under systemd
+            install the udev rule, in a container check --device.
+            "capability" means the file opened but the ioctl was refused —
+            check AmbientCapabilities under systemd, or that the container
+            runs as uid 0 with --cap-add=SYS_ADMIN.
+            "timeout", "ioctl" and "parse" point at the drive or the driver
+            rather than at the deployment.
+
+      - alert: NVMeExporterDown
+        expr: up{job=~".*nvme.*"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: nvme_logpage_exporter on {{ $labels.instance }} is not responding
+          description: >-
+            No drive health is being collected from this host. The exporter
+            reads log pages over ioctl and holds no state, so a restart is
+            safe and loses nothing but the gap in the graphs.
