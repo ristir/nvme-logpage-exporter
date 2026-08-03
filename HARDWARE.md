@@ -1,8 +1,8 @@
 # Verified hardware
 
 Every drive listed here was measured in production, not inferred from a
-datasheet. The numbers come from live `/metrics` output across 386 hosts and
-876 devices, 29 models from 5 vendors.
+datasheet. The numbers come from live `/metrics` output across 29 models
+from 5 vendors.
 
 **Full support** means the controller serves all four log pages the exporter
 reads — 0x01, 0x02, 0x03 and OCP 0xC0 — and implements every one of the 24

@@ -1,0 +1,46 @@
+name: Docker Hub description
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["packaging/docker/overview.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A separate token from the one that pushes images: editing repository
+      # metadata needs the delete-level scope, and a push token does not.
+      - env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_DESCRIPTION_TOKEN: ${{ secrets.DOCKERHUB_DESCRIPTION_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          jwt=$(jq -n --arg u "$DOCKERHUB_USERNAME" --arg p "$DOCKERHUB_DESCRIPTION_TOKEN" \
+                  '{username: $u, password: $p}' \
+                | curl -sS -H 'Content-Type: application/json' -d @- \
+                    https://hub.docker.com/v2/users/login/ \
+                | jq -r '.token // empty')
+          [ -n "$jwt" ] || { echo "docker hub login failed"; exit 1; }
+
+          scope=$(echo "$jwt" | cut -d. -f2 | base64 -d 2>/dev/null | jq -r '.scope // "?"')
+          [ "$scope" = "repo:admin" ] || {
+            echo "token scope is '$scope'; editing the description needs repo:admin"
+            exit 1
+          }
+
+          jq -n --rawfile d packaging/docker/overview.md '{full_description: $d}' \
+            | curl -sS -f -X PATCH -d @- \
+                -H "Authorization: JWT $jwt" \
+                -H 'Content-Type: application/json' \
+                "https://hub.docker.com/v2/repositories/${DOCKERHUB_USERNAME}/nvme-logpage-exporter/" \
+            > /dev/null
+
+          echo "description synced"

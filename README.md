@@ -101,8 +101,8 @@ that range in one direction or the other.
   carries no timestamp, and it counts admin commands the drive rejected as
   unimplemented, including probes from other tools on the same host.
 
-This has been checked against real hardware: 29 models from 5 vendors,
-876 devices across 386 hosts. On a Samsung PM9A1, all 20 comparable metrics
+This has been checked against real hardware: 29 models from 5 vendors, in
+production rather than on a bench. On a Samsung PM9A1, all 20 comparable metrics
 matched a simultaneous `smartctl` sample exactly. Ten of the 29 models
 serve the OCP log and implement every field it defines; the rest serve the
 three standard pages and export 32-34 metrics instead of 57.
