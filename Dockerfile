@@ -7,5 +7,5 @@ ARG TARGETARCH
 # CapEff empty and every device read fails. --privileged is still not needed.
 COPY dist/nvme_logpage_exporter-linux-${TARGETARCH} /nvme_logpage_exporter
 
-EXPOSE 9683
+EXPOSE 10192
 ENTRYPOINT ["/nvme_logpage_exporter"]

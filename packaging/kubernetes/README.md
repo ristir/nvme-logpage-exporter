@@ -45,7 +45,7 @@ The pod annotations suit a Prometheus configured with the usual pod
 discovery. With Prometheus Operator, add a `PodMonitor` selecting
 `app.kubernetes.io/name: nvme-logpage-exporter` on port `metrics` instead.
 
-`hostNetwork: true` and `hostPort: 9683` make the endpoint reachable at the
+`hostNetwork: true` and `hostPort: 10192` make the endpoint reachable at the
 node address, which is what a Consul or static scrape config expects. Drop
 both if pod-IP discovery is enough — nothing in the exporter needs the host
 network itself.

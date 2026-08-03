@@ -27,7 +27,7 @@ const (
 
 func main() {
 	var (
-		webConfig   = webflag.AddFlags(kingpin.CommandLine, ":9683")
+		webConfig   = webflag.AddFlags(kingpin.CommandLine, ":10192")
 		metricsPath = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").
 				Default("/metrics").String()
 		sourceSpec = kingpin.Flag("nvme.source",

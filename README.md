@@ -327,7 +327,7 @@ mode and the first start fails at `open`.
 ## Running it
 
 ```bash
-nvme_logpage_exporter --web.listen-address=:9683
+nvme_logpage_exporter --web.listen-address=:10192
 ```
 
 A ready-made unit is provided at
@@ -339,7 +339,7 @@ too — see Privileges and Installation above.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--web.listen-address` | `:9683` | Repeatable. Address(es) to listen on. |
+| `--web.listen-address` | `:10192` | Repeatable. Address(es) to listen on. The port is this exporter's allocation in the Prometheus registry. |
 | `--web.telemetry-path` | `/metrics` | Path under which metrics are served. |
 | `--web.config.file` | (none) | TLS and basic auth config file, provided by `exporter-toolkit`. Without it the server has neither. See the [web-configuration docs](https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md). |
 | `--web.systemd-socket` | `false` | Use systemd socket activation listeners instead of `--web.listen-address` port listeners. Linux only; registered unconditionally by `exporter-toolkit` on that platform. |
@@ -368,7 +368,7 @@ and no `--privileged`:
 ```bash
 docker run --cap-add=SYS_ADMIN \
   --device=/dev/nvme0 --device=/dev/nvme1 \
-  -v /sys:/sys:ro -p 9683:9683 \
+  -v /sys:/sys:ro -p 10192:10192 \
   nvme_logpage_exporter:<version>
 ```
 

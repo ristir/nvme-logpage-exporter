@@ -51,12 +51,12 @@ docker: dist
 smoke: build
 	@echo "Requires a host with NVMe and CAP_SYS_ADMIN"
 	sudo ./bin/$(BINARY) dump --out /tmp/nvme-smoke
-	sudo timeout 10 ./bin/$(BINARY) --web.listen-address=:9683 & \
+	sudo timeout 10 ./bin/$(BINARY) --web.listen-address=:10192 & \
 	for i in $$(seq 1 20); do \
-		curl -sf localhost:9683/metrics >/dev/null 2>&1 && break ; \
+		curl -sf localhost:10192/metrics >/dev/null 2>&1 && break ; \
 		sleep 0.5 ; \
 	done ; \
-	count=$$(curl -s localhost:9683/metrics | grep -c '^nvme_logpage_') ; \
+	count=$$(curl -s localhost:10192/metrics | grep -c '^nvme_logpage_') ; \
 	echo "$$count nvme_logpage_ series" ; \
 	wait ; \
 	test "$$count" -gt 0

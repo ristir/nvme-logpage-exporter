@@ -7,7 +7,7 @@ After=network-online.target
 Type=simple
 User=nvme_logpage
 Group=nvme_logpage
-ExecStart=/usr/local/bin/nvme_logpage_exporter --web.listen-address=:9683
+ExecStart=/usr/local/bin/nvme_logpage_exporter --web.listen-address=:10192
 Restart=on-failure
 RestartSec=5s
 

@@ -26,7 +26,7 @@ spec:
         app.kubernetes.io/name: nvme-logpage-exporter
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "9683"
+        prometheus.io/port: "10192"
         prometheus.io/path: /metrics
     spec:
       hostNetwork: true
@@ -47,11 +47,11 @@ spec:
         - name: exporter
           image: ghcr.io/ristir/nvme-logpage-exporter:latest
           args:
-            - --web.listen-address=:9683
+            - --web.listen-address=:10192
           ports:
             - name: metrics
-              containerPort: 9683
-              hostPort: 9683
+              containerPort: 10192
+              hostPort: 10192
           securityContext:
             # privileged, unlike under Docker, where --cap-add=SYS_ADMIN plus
             # --device is enough. Kubernetes has no field for a device cgroup
@@ -78,7 +78,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /metrics
-              port: 9683
+              port: 10192
             initialDelaySeconds: 10
             periodSeconds: 30
       volumes:
