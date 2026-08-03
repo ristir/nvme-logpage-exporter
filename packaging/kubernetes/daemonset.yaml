@@ -1,0 +1,90 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nvme-logpage-exporter
+  labels:
+    # SYS_ADMIN is rejected by the baseline and restricted standards.
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvme-logpage-exporter
+  namespace: nvme-logpage-exporter
+  labels:
+    app.kubernetes.io/name: nvme-logpage-exporter
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvme-logpage-exporter
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nvme-logpage-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9683"
+        prometheus.io/path: /metrics
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      # Nodes without NVMe never schedule a pod, so the DaemonSet can target
+      # every node without wasting one per diskless VM.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvme
+                    operator: In
+                    values: ["true"]
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: exporter
+          image: ghcr.io/ristir/nvme-logpage-exporter:latest
+          args:
+            - --web.listen-address=:9683
+          ports:
+            - name: metrics
+              containerPort: 9683
+              hostPort: 9683
+          securityContext:
+            # privileged, unlike under Docker, where --cap-add=SYS_ADMIN plus
+            # --device is enough. Kubernetes has no field for a device cgroup
+            # rule, and a hostPath /dev alone gets EPERM on open: measured, not
+            # assumed. A device plugin is the only other way out.
+            privileged: true
+            # uid 0 as well: an added capability lands in the bounding set, and
+            # reaches the effective set for uid 0 alone.
+            runAsUser: 0
+            runAsGroup: 0
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: sys
+              mountPath: /sys
+              readOnly: true
+            - name: dev
+              mountPath: /dev
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9683
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: dev
+          hostPath:
+            path: /dev
