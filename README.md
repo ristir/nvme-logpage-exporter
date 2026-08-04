@@ -229,13 +229,11 @@ process can reach with it, what each deployment grants beyond it, what
 `/metrics` discloses without authentication, and what a compromise would
 cost. This section covers what has to be in place for a read to succeed.
 
-Two independent conditions have to be met. Both have now been verified
-on real hardware, and the failure for each is reported with a distinct
-message rather than a generic "permission denied": opening the device
-file fails with `failed to open device file`, and a rejected admin
-command fails with `missing CAP_SYS_ADMIN` — the second one is reached
-only once the first has already succeeded, which is exactly what "two
-independent conditions" means in practice.
+Two independent conditions have to be met, and each failure has its own
+message rather than a generic "permission denied": opening the device file
+fails with `failed to open device file`, a rejected admin command with
+`missing CAP_SYS_ADMIN`. The second is reached only once the first has
+succeeded.
 
 1. **`CAP_SYS_ADMIN`** — the kernel requires it on `NVME_IOCTL_ADMIN_CMD`
    regardless of who owns the process.
@@ -253,18 +251,15 @@ independent conditions" means in practice.
    **required** for any non-root deployment, not an alternative to group
    membership.
 
-### Under systemd: verified non-root
+### Under systemd: non-root
 
-The provided unit (`packaging/systemd/nvme_logpage_exporter.service`) has
-been measured running as an unprivileged, non-root user and successfully
-reading the health log: `AmbientCapabilities=CAP_SYS_ADMIN` is what makes
-that possible, because it is the one mechanism that carries a capability
-into a non-root process's effective set at exec time. Combined with the
-udev rule for device access, no root and no `sudo` are needed.
+The provided unit (`packaging/systemd/nvme_logpage_exporter.service`) runs
+as an unprivileged user. `AmbientCapabilities=CAP_SYS_ADMIN` is what makes
+that work: it is the one mechanism that carries a capability into a non-root
+process's effective set at exec time. With the udev rule for device access,
+neither root nor `sudo` is needed.
 
-Measured on two Ubuntu 24.04 hosts (systemd 255), one carrying drives
-with an OCP page and one without. The running process holds exactly one
-capability and nothing else:
+The running process holds exactly one capability:
 
 ```
 $ grep ^Cap /proc/$(systemctl show -p MainPID --value nvme_logpage_exporter)/status
@@ -293,9 +288,8 @@ opened but the ioctl was refused, which points at
 
 ### In a container: root inside the container, not `--privileged`
 
-The container path was measured separately, and it does **not** work the
-same way: Docker's `--cap-add=SYS_ADMIN` only populates the *bounding*
-set for the container's process. It reaches the *effective* set solely
+A container does **not** work the same way: Docker's `--cap-add=SYS_ADMIN`
+only populates the *bounding* set for the container's process. It reaches the *effective* set solely
 for uid 0 — Docker has no ambient-capability flag equivalent to
 `AmbientCapabilities`. A container running as a non-root user therefore
 ends up with `CAP_SYS_ADMIN` in its bounding set but not its effective
@@ -304,8 +298,7 @@ set, and every device read fails.
 So the shipped image runs as root **inside the container** (see the
 comment in `Dockerfile`). This is still not `--privileged`: running with
 `--cap-add=SYS_ADMIN --device=/dev/nvme0 -v /sys:/sys:ro` and no
-`--privileged` is enough, and was confirmed to produce the full metric
-set. `--privileged` would additionally grant every other capability and
+`--privileged` produces the full metric set. `--privileged` would additionally grant every other capability and
 access to every device on the host; this setup grants neither.
 
 ## Installation
@@ -386,8 +379,7 @@ default capabilities, none of which this exporter uses.
 
 Kubernetes is the exception, and it needs `privileged: true`. There is no
 field for a device cgroup rule, so a hostPath `/dev` gets `EPERM` on open
-however many capabilities the pod is given — measured, not assumed. The
-namespace also needs `pod-security.kubernetes.io/enforce: privileged`. A
+however many capabilities the pod is given. The namespace also needs `pod-security.kubernetes.io/enforce: privileged`. A
 ready DaemonSet is in [`packaging/kubernetes/`](packaging/kubernetes/).
 
 ## Working with dumps
@@ -415,12 +407,12 @@ have a parser for.
 ## Alerting rules
 
 `packaging/alerts/nvme-logpage-exporter.rules.yml` is a starting set of
-thirteen rules for Prometheus or vmalert. Read it before deploying it —
+fifteen rules for Prometheus or vmalert. Read it before deploying it —
 each rule carries its reasoning, and several thresholds are deliberately
 not the ones other NVMe alerting examples use.
 
-Three choices in there are worth surfacing here, because they are the ones
-most likely to be "corrected" by someone skimming:
+Four choices in there are the ones most likely to be "corrected" by someone
+skimming:
 
 **Temperature and spare capacity are compared against the drive's own
 thresholds**, never against a constant. The controller publishes both, and

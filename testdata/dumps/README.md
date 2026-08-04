@@ -1,7 +1,8 @@
 # Dump fixtures
 
-Directories other than `synthetic-samsung` are real dumps captured from
-production hardware with `nvme_logpage_exporter dump`. Serial numbers are
+Every directory except `synthetic-samsung`, `synthetic-ocp` and `gen` holds
+a real dump captured from production hardware with
+`nvme_logpage_exporter dump`. Serial numbers are
 scrubbed (`SCRUBBED` in `meta.json`, the SN and SUBNQN fields blanked in
 `identify.bin`, and every captured buffer scanned for any remaining
 verbatim occurrence — see `CONTRIBUTING.md`); model and firmware strings
@@ -28,5 +29,6 @@ whose GUID is not the OCP one, the same way `intel-p4510` and `dell-p4510`
 do, so the parser must reject them on the GUID rather than on the model.
 
 `synthetic-samsung` and `synthetic-ocp` are hand-built, not real dumps;
-existing unit tests depend on their exact byte layout. See `internal/collector/realdumps_test.go`
+unit tests depend on their exact byte layout, and `gen` holds the generator
+that writes them. See `internal/collector/realdumps_test.go`
 for the test that consumes the fixtures above.

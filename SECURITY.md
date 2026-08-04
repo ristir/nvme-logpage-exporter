@@ -90,9 +90,7 @@ monitoring backend and, wherever `remote_write` is configured, forwarded on
 — including to third-party SaaS. Serial numbers and firmware revisions leave
 the perimeter with the metrics unless they are dropped by relabelling first.
 
-**The endpoint is unauthenticated by default.** The shipped DaemonSet keeps
-it on the pod network — no `hostNetwork`, no `hostPort` — so inside a cluster
-it is reachable only from the cluster network. On a host, it listens on
+**The endpoint is unauthenticated by default**, and on a host it listens on
 every interface unless told otherwise.
 
 Two ways to close it:
@@ -103,9 +101,7 @@ Two ways to close it:
   with `tls_server_config` and `basic_auth_users`.
 - **Bind to an internal address.** `--web.listen-address` is repeatable and
   accepts an address, not just a port: `--web.listen-address=10.0.0.5:10192`
-  keeps the endpoint off public interfaces. On Kubernetes, dropping
-  `hostNetwork` and `hostPort` in favour of a scrape inside the cluster
-  network has the same effect.
+  keeps the endpoint off public interfaces.
 
 ## What each deployment grants
 
@@ -195,10 +191,6 @@ allow `privileged: true` to be replaced by `capabilities: {drop: [ALL], add:
 `mount`, `setns` and `unshare` whenever `CAP_SYS_ADMIN` is present, so
 recovering it narrows less than it appears; the AppArmor profile and the
 smaller capability set are where the difference is.
-
-The pod does not mount a service account token and does not use
-`hostNetwork` or `hostPort`: scraping goes to the pod address on the cluster
-network.
 
 **Prefer the systemd unit on bare metal.** Use the DaemonSet where nodes are
 managed only through Kubernetes, and weigh the wider grant against that
