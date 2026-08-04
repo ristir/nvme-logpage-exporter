@@ -223,6 +223,12 @@ Information Extended log.
 
 ## Privileges
 
+`CAP_SYS_ADMIN` is the broadest capability Linux has.
+[`SECURITY.md`](SECURITY.md) covers why it cannot be narrowed, what the
+process can reach with it, what each deployment grants beyond it, what
+`/metrics` discloses without authentication, and what a compromise would
+cost. This section covers what has to be in place for a read to succeed.
+
 Two independent conditions have to be met. Both have now been verified
 on real hardware, and the failure for each is reported with a distinct
 message rather than a generic "permission denied": opening the device
@@ -368,11 +374,15 @@ devices and `/sys` mounted in from the outside, `--cap-add=SYS_ADMIN`,
 and no `--privileged`:
 
 ```bash
-docker run --cap-add=SYS_ADMIN \
+docker run --cap-drop=ALL --cap-add=SYS_ADMIN \
+  --security-opt=no-new-privileges --read-only \
   --device=/dev/nvme0 --device=/dev/nvme1 \
   -v /sys:/sys:ro -p 10192:10192 \
   nvme_logpage_exporter:<version>
 ```
+
+Without `--cap-drop=ALL` the container also carries Docker's fourteen
+default capabilities, none of which this exporter uses.
 
 Kubernetes is the exception, and it needs `privileged: true`. There is no
 field for a device cgroup rule, so a hostPath `/dev` gets `EPERM` on open
