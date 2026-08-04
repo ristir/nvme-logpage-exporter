@@ -6,9 +6,10 @@ datasource scraping the exporter, and nothing else.
 
 ## Import
 
-1. Grafana -> Dashboards -> New -> Import.
-2. Upload `nvme-logpage-exporter.json`.
-3. Pick a datasource for the `datasource` variable.
+Grafana -> Dashboards -> New -> Import, then either enter `25639` to pull it
+from [grafana.com](https://grafana.com/grafana/dashboards/25639), or upload
+`nvme-logpage-exporter.json` from this directory. Pick a datasource for the
+`datasource` variable when prompted.
 
 The `job`, `instance`, `device` and `top_n` variables populate from that
 datasource.
