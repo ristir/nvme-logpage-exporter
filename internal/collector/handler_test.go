@@ -176,6 +176,11 @@ func TestScrapeDeadline(t *testing.T) {
 		{"negative", "-1", 0, false},
 		{"zero", "0", 0, false},
 		{"valid", "2.5", 2500 * time.Millisecond, true},
+		{"NaN", "NaN", 0, false},
+		{"negative infinity", "-Inf", 0, false},
+		{"positive infinity", "Inf", maxScrapeTimeout, true},
+		{"beyond int64 nanoseconds", "1e18", maxScrapeTimeout, true},
+		{"above the ceiling", "7200", maxScrapeTimeout, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

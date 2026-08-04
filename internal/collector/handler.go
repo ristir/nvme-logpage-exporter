@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -60,14 +61,21 @@ func (l slogErrorLog) Println(v ...any) {
 	l.logger.Error(fmt.Sprint(v...))
 }
 
+const maxScrapeTimeout = time.Hour
+
 func scrapeDeadline(r *http.Request) (time.Duration, bool) {
 	v := r.Header.Get("X-Prometheus-Scrape-Timeout-Seconds")
 	if v == "" {
 		return 0, false
 	}
 	secs, err := strconv.ParseFloat(v, 64)
-	if err != nil || secs <= 0 {
+	// NaN and Inf survive ParseFloat, and converting either to a Duration is
+	// implementation-defined: arm64 saturates, amd64 yields the minimum int64.
+	if err != nil || math.IsNaN(secs) || secs <= 0 {
 		return 0, false
+	}
+	if secs >= maxScrapeTimeout.Seconds() {
+		return maxScrapeTimeout, true
 	}
 	return time.Duration(secs * float64(time.Second)), true
 }
