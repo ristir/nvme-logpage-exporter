@@ -44,18 +44,34 @@ that range in one direction or the other.
 
 ## Metrics
 
-Every metric carries the `device` and `serial` labels; the table lists only
+A **log page** is what the NVMe specification calls a fixed-layout block the
+controller returns for one
+[`Get Log Page`](https://github.com/linux-nvme/nvme-cli/blob/master/Documentation/nvme-get-log.txt)
+command. The specification defines around forty; four of them are read here:
+
+- **`0x02`** SMART / Health Information — wear, temperature, spare capacity,
+  lifetime counters. Every drive serves it.
+- **`0x01`** Error Information — the entries the drive retains about commands
+  it rejected.
+- **`0x03`** Firmware Slot Information — which revision sits in which slot.
+- **`0xC0`** OCP SMART Extended — a vendor page that datacenter-class drives
+  serve and client drives do not. It carries the physical media counters, and
+  therefore true write amplification. See
+  [OCP extended health log](#ocp-extended-health-log-page-0xc0) below.
+
+Two more sources appear in the table: **Identify Controller** for inventory and
+the drive's own temperature thresholds, and **sysfs** for what the kernel knows
+without asking the drive — which is why controller state survives a drive that
+has stopped answering.
+
+A drive that does not serve a page simply omits its metrics and says so in
+`supported`; a drive without OCP loses those 25 and nothing else. Individual
+fields the controller reports as not implemented are omitted rather than
+exported as zero.
+
+Every metric carries the `device` and `serial` labels, so the table lists only
 the labels that come in addition. The `nvme_logpage_` prefix is omitted from
 the names.
-
-**Source** is where the value comes from: a log page by its identifier,
-`Identify` for Identify Controller, `sysfs` for what the kernel knows without
-asking the drive, and `exporter` for the exporter's own diagnostics. A drive
-that does not serve page 0xC0 loses those 25 metrics and nothing else.
-
-A drive that does not serve a given log page simply omits its metrics and says
-so in `supported`. Fields the controller reports as not implemented are omitted
-rather than exported as zero.
 
 | Name | Source | Type | Extra labels | Description |
 |---|---|---|---|---|
