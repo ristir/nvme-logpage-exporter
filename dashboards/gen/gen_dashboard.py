@@ -1,21 +1,12 @@
 #!/usr/bin/env python3
 """Generate dashboards/nvme-logpage-exporter.json.
 
-The dashboard is generated rather than hand-edited because it is large and
-highly repetitive: thirty-odd panels that differ only in their query, unit
-and title. Hand-maintaining that in JSON is how the previous version ended
-up with a value mapping copied onto panels where its polarity was inverted,
-painting a healthy fleet solid red.
-
-Design constraint that shapes everything below: this must stay readable on a
-fleet of several hundred hosts. Nothing above the first collapsed row may
-render one series per device. The top rows are scalars and topk tables, so
-the number of elements drawn is constant no matter how large the fleet gets.
-Per-device detail lives in collapsed rows and is reached by selecting a host.
+Nothing above the first collapsed row may render one series per device: the top
+rows must draw the same number of elements on a fleet of several hundred hosts
+as on one.
 
 Run: python3 dashboards/gen/gen_dashboard.py
 """
-
 import json
 import os
 
@@ -23,8 +14,7 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "nvme-logpage-exporter.json"
 
 DS = {"type": "prometheus", "uid": "${datasource}"}
 
-# Label selector shared by every query. Kept in one place so a new variable
-# does not have to be threaded through thirty panels by hand.
+# Label selector shared by every query.
 SEL = 'job=~"$job",instance=~"$instance",device=~"$device"'
 
 # Ten years. Past that the projection says "never", and the input is a whole
@@ -202,10 +192,8 @@ def row(title, panels, collapsed=True, y=0):
     }
 
 
-# Value mappings. Polarity is not shared between these two: for a warning
-# flag 1 is the bad state, for an availability or success gauge 1 is the
-# good one. The previous dashboard used the first mapping on all three
-# panels, which painted a healthy fleet solid red.
+# Polarity differs: for a warning flag 1 is the bad state, for an availability
+# or success gauge 1 is the good one. One mapping cannot serve both.
 MAP_FLAG = [{"type": "value", "options": {
     "0": {"text": "clear", "color": "green", "index": 0},
     "1": {"text": "SET", "color": "red", "index": 1}}}]
@@ -213,6 +201,19 @@ MAP_FLAG = [{"type": "value", "options": {
 MAP_OK = [{"type": "value", "options": {
     "0": {"text": "FAIL", "color": "red", "index": 1},
     "1": {"text": "ok", "color": "green", "index": 0}}}]
+
+MAP_SELFTEST = [{"type": "value", "options": {
+    "0": {"text": "passed", "color": "green", "index": 0},
+    "1": {"text": "aborted by command", "color": "text", "index": 1},
+    "2": {"text": "aborted by reset", "color": "text", "index": 2},
+    "3": {"text": "aborted, namespace removed", "color": "text", "index": 3},
+    "4": {"text": "aborted by format", "color": "text", "index": 4},
+    "5": {"text": "fatal error", "color": "red", "index": 5},
+    "6": {"text": "failed, unknown segment", "color": "red", "index": 6},
+    "7": {"text": "failed segment", "color": "red", "index": 7},
+    "8": {"text": "aborted, unknown", "color": "text", "index": 8},
+    "9": {"text": "aborted by sanitize", "color": "text", "index": 9},
+}}]
 
 MAP_PRESENT = [{"type": "value", "options": {
     "0": {"text": "absent", "color": "text", "index": 1},
@@ -312,9 +313,7 @@ pie_models = {
     },
 }
 
-# Devices with a warning bit set. In a healthy fleet this is empty, and an
-# empty panel is the point: it reads as "nothing wrong" at a glance, the way
-# the smartctl dashboard's Critical Warnings tile does.
+# In a healthy fleet this is empty, and the emptiness is the signal.
 warnings_table = table(
     "Critical warnings — devices needing attention",
     [tgt(f"nvme_logpage_critical_warning_flag{{{SEL}}} == 1", instant=True, fmt="table")],
@@ -500,24 +499,16 @@ fastest_wear = table(
 )
 
 # --- Inventory (collapsed) ----------------------------------------------
-# The join that the previous dashboard got wrong. Six queries whose label
-# sets differ cannot be combined with `merge`, which appends frames instead
-# of joining them: the result was every device listed once per metric, each
-# time with a different column populated. joinByLabels joins on the labels
-# the queries genuinely share.
-# Columns for the device table. Each query is decorated twice before it can
-# be joined:
+# Grafana's `merge` appends frames rather than joining them, so each query is
+# decorated twice before joinByLabels can combine them:
 #
-#   * group_left(model, firmware) pulls the identifying labels across from
-#     nvme_logpage_device_info, which is the only series carrying them. Without
-#     this the frames have different label sets and cannot be joined at all.
-#   * label_replace stamps a `metric` label, which joinByLabels uses to name
-#     the resulting column. The arithmetic above drops __name__, so there is
-#     nothing else left to name columns by.
+#   * group_left(model, firmware) gives every frame the same label set, pulling
+#     the identifying labels from nvme_logpage_device_info.
+#   * label_replace stamps a `metric` label to name the column: the arithmetic
+#     drops __name__, leaving nothing else to name it by.
 #
-# joinByLabels then has to join on every remaining label. Any label left out
-# splits one device across several rows — which is the failure the previous
-# version shipped, by way of a `merge` that appended frames instead.
+# joinByLabels must then join on every remaining label; one left out splits a
+# device across several rows.
 DEVICE_JOIN_LABELS = ["instance", "device", "serial", "model", "firmware", "job"]
 
 DEVICE_COLUMNS = [
@@ -754,6 +745,33 @@ temperature = [
                unit="percentunit", w=24, x=0, y=16),
 ]
 
+self_test = [
+    table("Self-test outcomes",
+          [tgt(f"nvme_logpage_self_test_results{{{SEL}}}", instant=True)],
+          "Entries the drive retains, by outcome and test type. Aborted is "
+          "neither a pass nor a failure: the run stopped for a reason outside "
+          "the medium, most often a controller reset. Only fatal_error and the "
+          "failed_* outcomes indict the drive. A drive nobody has asked to "
+          "self-test shows nothing here, which is not the same as passing.",
+          transformations=[organize(exclude=("Time", "__name__", "job"))],
+          w=12, h=8, x=0, y=0),
+    timeseries("Hours since the last self-test",
+               [tgt(f"(nvme_logpage_power_on_seconds_total{{{SEL}}} - "
+                    f"on(job, instance, device, serial) "
+                    f"nvme_logpage_self_test_last_power_on_seconds{{{SEL}}}) / 3600",
+                    "{{instance}} {{device}}")],
+               "Drive power-on time elapsed since the newest entry. The log "
+               "carries no clock, so age is measured in the drive's own hours "
+               "rather than wall time.",
+               unit="h", w=12, x=12, y=0),
+    state_timeline("Last self-test outcome",
+                   [tgt(f"nvme_logpage_self_test_last_result{{{SEL}}}",
+                        "{{instance}} {{device}}")],
+                   "Outcome code of the newest entry. Absent where the drive "
+                   "has never run one.",
+                   MAP_SELFTEST, w=24, x=0, y=8),
+]
+
 reliability = [
     state_timeline("Critical warning flags",
                    [tgt(f"nvme_logpage_critical_warning_flag{{{SEL}}} == 1",
@@ -905,6 +923,7 @@ panels.extend([worst_wear, least_headroom, worst_wa, fastest_wear])
 panels.append(row("Inventory", [inventory_table, firmware_table, namespaces_table], y=32))
 panels.append(row("Endurance and wear", endurance, y=33))
 panels.append(row("Temperature", temperature, y=34))
+panels.append(row("Self-test", self_test, y=34.5))
 panels.append(row("Reliability", reliability, y=35))
 panels.append(row("Activity", activity, y=36))
 panels.append(row("Exporter self-diagnostics", exporter, y=37))

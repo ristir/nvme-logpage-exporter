@@ -461,3 +461,109 @@ func TestRealDumpsFirmwareSlots(t *testing.T) {
 		}
 	}
 }
+
+type selfTestExpectation struct {
+	entries  int           // written entries, unused slots excluded
+	byResult map[uint8]int // result code -> count
+	lastPOH  uint64        // power-on hours of the newest entry
+}
+
+// Ground truth read off the drives with nvme-cli, not back out of the fixture.
+// The KIOXIA logs are empty because nobody has ever run a self-test on them:
+// page served and log empty are different facts.
+var selfTestExpectations = map[string]map[string]selfTestExpectation{
+	"samsung-pm9a1": {
+		"nvme0": {entries: 11, byResult: map[uint8]int{0: 7, 2: 4}, lastPOH: 0x2edc},
+		"nvme1": {entries: 3, byResult: map[uint8]int{0: 2, 2: 1}},
+	},
+	"kioxia-kcd8": {
+		"nvme0": {entries: 0},
+		"nvme1": {entries: 0},
+	},
+}
+
+func TestRealDumpsSelfTest(t *testing.T) {
+	for dir, ctrls := range selfTestExpectations {
+		for ctrl, want := range ctrls {
+			t.Run(dir+"/"+ctrl, func(t *testing.T) {
+				src, err := nvme.NewReplay(filepath.Join(realDumpsRoot, dir))
+				if err != nil {
+					t.Fatalf("NewReplay: %v", err)
+				}
+
+				raw, err := src.LogPage(context.Background(), ctrl, logpage.IDSelfTest, logpage.SelfTestSize)
+				if err != nil {
+					t.Fatalf("LogPage 0x06: %v", err)
+				}
+				s, err := logpage.ParseSelfTest(raw)
+				if err != nil {
+					t.Fatalf("ParseSelfTest: %v", err)
+				}
+
+				if len(s.Results) != want.entries {
+					t.Fatalf("Results = %d, want %d", len(s.Results), want.entries)
+				}
+				if s.InProgress != 0 {
+					t.Errorf("InProgress = %d, want 0: no test was running when the dump was taken", s.InProgress)
+				}
+
+				got := map[uint8]int{}
+				for _, r := range s.Results {
+					got[r.Result]++
+				}
+				for res, n := range want.byResult {
+					if got[res] != n {
+						t.Errorf("result %d: %d entries, want %d (all: %v)", res, got[res], n, got)
+					}
+				}
+				if want.lastPOH != 0 && s.Results[0].PowerOnHours != want.lastPOH {
+					t.Errorf("newest entry power-on hours = %#x, want %#x", s.Results[0].PowerOnHours, want.lastPOH)
+				}
+			})
+		}
+	}
+}
+
+// A page the replay source serves has to parse; one it refuses must refuse
+// with ErrPageUnsupported.
+func TestRealDumpsSelfTestAbsenceIsClean(t *testing.T) {
+	entries, err := os.ReadDir(realDumpsRoot)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	served, absent := 0, 0
+	for _, e := range entries {
+		if !e.IsDir() || e.Name() == syntheticDumpDir || e.Name() == "gen" {
+			continue
+		}
+		src, err := nvme.NewReplay(filepath.Join(realDumpsRoot, e.Name()))
+		if err != nil {
+			continue
+		}
+		ctrls, err := src.Controllers()
+		if err != nil {
+			t.Fatalf("%s: Controllers: %v", e.Name(), err)
+		}
+		for _, c := range ctrls {
+			raw, err := src.LogPage(context.Background(), c.Name, logpage.IDSelfTest, logpage.SelfTestSize)
+			switch {
+			case errors.Is(err, nvme.ErrPageUnsupported):
+				absent++
+			case err != nil:
+				t.Errorf("%s/%s: unexpected error: %v", e.Name(), c.Name, err)
+			default:
+				served++
+				if _, err := logpage.ParseSelfTest(raw); err != nil {
+					t.Errorf("%s/%s: page served but does not parse: %v", e.Name(), c.Name, err)
+				}
+			}
+		}
+	}
+	if served == 0 {
+		t.Error("no fixture serves page 0x06; the parser has no real-hardware coverage")
+	}
+	if absent == 0 {
+		t.Error("no fixture lacks page 0x06; the absent-page path has no coverage")
+	}
+	t.Logf("page 0x06: served by %d controllers, absent on %d", served, absent)
+}

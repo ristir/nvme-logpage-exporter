@@ -41,6 +41,7 @@ var pages = []struct {
 	{0x02, 512},
 	{0x01, 512},
 	{0x03, 512},
+	{0x06, logpage.SelfTestSize},
 	{0x09, 512},
 	{0xC0, 512},
 }

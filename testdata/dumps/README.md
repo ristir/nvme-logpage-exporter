@@ -12,10 +12,10 @@ Directory name is `<vendor>-<model>`, not the original hostname.
 
 | Directory | Model | Firmware | Spec | Sensors | OCP | Pages | Useful for |
 |---|---|---|---|---|---|---|---|
-| `samsung-pm9a1` | SAMSUNG MZVL2512HCJQ-00B07 | GXA7802Q | 1.3 | 2 | no | 01 02 03 | client drive, no OCP |
+| `samsung-pm9a1` | SAMSUNG MZVL2512HCJQ-00B07 | GXA7802Q | 1.3 | 2 | no | 01 02 03 06 | client drive, no OCP; the only fixture whose self-test log has entries — 11 on nvme0 and 3 on nvme1, mixing passes with runs a controller reset aborted |
 | `samsung-datacenter` | SAMSUNG MZQL21T9HCJR-00A07 / MZQLB1T9HAJR-00007 | GDC5902Q / EDA5502Q | 1.4 / 1.2 | 2 / 3 | yes / no | 01 02 03 (+ C0 on nvme0) | two different models in one `meta.json`; model label must be per-controller |
 | `micron-3500` | Micron_3500_MTFDKBA512TGD | P8MA002 | 2.0 | 1 | no | 01 02 03 | single sensor, top of the spec range |
-| `kioxia-kcd8` | KIOXIA KCD8XRUG1T92 | 0105 | 1.4 | 0 | yes | 01 02 03 C0 | zero sensors with real OCP pages |
+| `kioxia-kcd8` | KIOXIA KCD8XRUG1T92 | 0105 | 1.4 | 0 | yes | 01 02 03 06 C0 | zero sensors with real OCP pages; serves page 06 with an empty log, which must not read as twenty passes |
 | `intel-p4510` | INTEL SSDPE2KX010T8 | VDV10184 | 1.2 | 0 | yes | 01 02 03 C0 | `MaxNamespaces` (NN) = 128, exactly one real namespace exists |
 | `dell-p4510` | Dell Express Flash NVMe P4510 1TB SFF | VDV1DP25 | 1.2 | 0 | yes | 01 02 03 C0 | same silicon as `intel-p4510` (VID 0x8086), different firmware, different CCTEMP and NN — a parser must not key on the model string |
 | `micron-3400` | Micron_3400_MTFDKBA512TFH | P7MU002 | 1.4 | 1 | no | 01 02 03 09 | the only fixture serving the endurance group log (09); ELPE 255, so the log holds 256 entries |
@@ -27,6 +27,12 @@ Directory name is `<vendor>-<model>`, not the original hostname.
 The four Samsung fixtures above answer page 0xC0 with data of their own
 whose GUID is not the OCP one, the same way `intel-p4510` and `dell-p4510`
 do, so the parser must reject them on the GUID rather than on the model.
+
+Page 06 is present in two fixtures only. It was captured from a second drive
+of the same model and firmware, not from the drive the rest of the directory
+came from, because no drive that already had a fixture also had self-test
+entries. Every other fixture omits the file, which the replay source treats as
+the drive not serving the page — the same answer the real transport gives.
 
 `synthetic-samsung` and `synthetic-ocp` are hand-built, not real dumps;
 unit tests depend on their exact byte layout, and `gen` holds the generator

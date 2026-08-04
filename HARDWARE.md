@@ -4,10 +4,15 @@ Every drive listed here was measured in production, not inferred from a
 datasheet. The numbers come from live `/metrics` output across 29 models
 from 5 vendors.
 
-**Full support** means the controller serves all four log pages the exporter
-reads — 0x01, 0x02, 0x03 and OCP 0xC0 — and implements every one of the 24
-OCP fields. That yields 57-58 distinct metrics per device. A drive without
-OCP yields 32-34.
+**Full support** means the controller serves the standard log pages the
+exporter reads — 0x01, 0x02, 0x03 — plus OCP 0xC0, and implements every one of
+the 24 OCP fields. That yields 57-58 distinct metrics per device. A drive
+without OCP yields 32-34.
+
+Page 0x06, the device self-test log, is read from every drive that serves it,
+which is most of them. It is listed separately below because it cuts across
+the OCP split: client drives serve it too, and the two generations that do not
+are older than the page itself.
 
 ## This list is not a compatibility requirement
 
@@ -87,6 +92,28 @@ handles them differently:
 - **Foreign data.** The Intel and Dell P4510 and every Samsung client drive
   above answer 0xC0 with 512 bytes whose GUID is not the OCP one. Nothing is
   appended to the error log, and the page is rejected at the GUID check.
+
+## Device self-test log (page 0x06)
+
+Measured by asking each model directly.
+
+| Model | Serves 0x06 |
+|---|---|
+| KIOXIA KCD8XRUG1T92 | yes |
+| Micron_3400_MTFDKBA512TFH | yes |
+| Micron_3500_MTFDKBA512TGD | yes |
+| SAMSUNG MZQL21T9HCJR-00A07 | yes |
+| SAMSUNG MZQL27T6HBLA-00A07 | yes |
+| SAMSUNG MZVL2512HCJQ-00B07 | yes |
+| SAMSUNG MZVLB512HAJQ-00000 | yes |
+| SAMSUNG MZQLB1T9HAJR-00007 | no |
+| Dell Express Flash NVMe P4510 | no |
+| INTEL SSDPE2KX010T8 | no |
+
+The page being served says nothing about the log holding anything: every
+datacenter drive sampled here serves it with an empty log, because nobody has
+ever run a self-test on them. The client drives that do have entries got them
+from tests someone ran by hand.
 
 ## Model name is not enough
 

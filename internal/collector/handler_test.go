@@ -82,7 +82,7 @@ func TestBrokenDeviceDoesNotKillScrape(t *testing.T) {
 	}
 }
 
-const collectorsPerBrokenDeviceScrape = 5
+const collectorsPerBrokenDeviceScrape = 6
 
 func TestDeviceErrorCounterPersistsAcrossScrapes(t *testing.T) {
 	good, err := nvme.NewReplay("../../testdata/dumps/synthetic-samsung")

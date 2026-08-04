@@ -172,6 +172,10 @@ func (e *Exporter) collectController(ctx context.Context, ch chan<- prometheus.M
 		ok = false
 		e.recordError(c, err)
 	}
+	if err := e.collectSelfTest(ctx, ch, c); err != nil {
+		ok = false
+		e.recordError(c, err)
+	}
 
 	if ok {
 		// A recurrence after recovery must be logged again.

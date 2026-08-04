@@ -54,6 +54,8 @@ command. The specification defines around forty; four of them are read here:
 - **`0x01`** Error Information — the entries the drive retains about commands
   it rejected.
 - **`0x03`** Firmware Slot Information — which revision sits in which slot.
+- **`0x06`** Device Self-test — results of the twenty most recent self-tests.
+  Served by most drives, but the log is empty until someone runs one.
 - **`0xC0`** OCP SMART Extended — a vendor page that datacenter-class drives
   serve and client drives do not. It carries the physical media counters, and
   therefore true write amplification. See
@@ -125,6 +127,11 @@ the names.
 | `scrape_duration_seconds` | exporter | gauge | — | Duration of polling a single device, in seconds. |
 | `scrape_success` | exporter | gauge | — | 1 if the device was polled successfully in full; 0 on any failure. |
 | `security_version` | 0xC0 | gauge | — | Security version number reported by the controller. |
+| `self_test_completion_ratio` | 0x06 | gauge | — | Progress of the running self-test as a fraction, 0..1. |
+| `self_test_last_power_on_seconds` | 0x06 | gauge | — | Drive power-on time when the most recent self-test ran. |
+| `self_test_last_result` | 0x06 | gauge | — | Outcome code of the most recent self-test entry: 0 completed without error, 1-4 and 8-9 aborted, 5 fatal error, 6-7 completed with failed segments. |
+| `self_test_results` | 0x06 | gauge | `result`, `test` | Entries retained in the device self-test log, grouped by outcome and test type. |
+| `self_test_running` | 0x06 | gauge | — | 1 while a device self-test is in progress; 0 when the drive is idle. |
 | `soft_ecc_errors_total` | 0xC0 | counter | — | Number of correctable ECC errors. |
 | `supported` | exporter | gauge | `page` | 1 if the controller serves this log page; 0 if it does not support it. |
 | `system_area_used_ratio` | 0xC0 | gauge | — | Consumed endurance of the controller's system data area as a fraction, 0..1. |
@@ -261,6 +268,32 @@ Information Extended log.
   own.** The counter (page 0x02) includes admin commands the drive
   rejected because it does not implement them — including probes issued
   by other monitoring tools polling the same controller.
+
+## Device self-test log (page 0x06)
+
+The drive keeps the outcomes of its twenty most recent self-tests. Most drives
+serve the page; the exceptions found here are Intel and Dell P4510 and the
+Samsung generations that predate it, which answer `Invalid Log Page`.
+
+- **An empty log is not a pass.** A drive nobody has asked to self-test returns
+  twenty unused slots, and reporting those as twenty successes would invent a
+  clean bill of health. No result series are emitted at all in that case, so
+  `absent` and `passed` stay distinguishable. Every datacenter drive sampled
+  here was in that state.
+- **Aborted is neither pass nor failure.** Result codes 1-4 and 8-9 mean the
+  run stopped for a reason outside the medium; the most common by far is a
+  controller reset, which happens whenever the drive is reset while a test is
+  running. Only codes 5-7 indict the drive. `nvme_logpage_self_test_results`
+  keeps them apart with the `result` label rather than folding them together.
+- **The exporter never starts a test.** It only reads what is already there.
+  A run costs I/O for its duration, and the drive reports how long an extended
+  one takes in Identify Controller, so scheduling is a decision for whoever owns
+  the host.
+- **Age comes from power-on hours, not a timestamp.** The log carries no clock.
+  Subtract `nvme_logpage_self_test_last_power_on_seconds` from
+  `nvme_logpage_power_on_seconds_total` for how long the drive has run since the
+  last result.
+
 
 ## Privileges
 
