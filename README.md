@@ -149,11 +149,13 @@ name collision with this exporter; its prefix is `node_`.
 Page 0xC0 is the OCP Datacenter NVMe SSD Specification's SMART / Health
 Information Extended log.
 
-- **Which drives have it.** The split is by drive class, not by vendor:
-  datacenter models expose it, client models from the same vendor do not.
-  Confirmed present on KIOXIA KCD8XRUG1T92, Micron MTFDKCC960TGP, Samsung
-  MZQL27T6HBLA and Micron 7450 MTFDKCC960TFR; confirmed absent on the
-  client-class Micron and Samsung drives checked so far.
+- **Which drives have it.** The split is by drive class and generation, not
+  by vendor. Recent datacenter models expose it — KIOXIA KCD8XRUG1T92,
+  Micron MTFDKCC960TGP, Samsung MZQL27T6HBLA and the like. Client models
+  from the same vendors do not, and neither do datacenter models older than
+  the specification: Samsung `MZQL2…` serves the page while the earlier
+  `MZQLB…` and `MZQLW…` parts answer nothing on it.
+  [`HARDWARE.md`](HARDWARE.md) has the full list.
 - **Why the GUID is checked.** Intel SSDPE2KX010T8 and Dell Express Flash
   P4510 both answer a read of page 0xC0 — with data of their own and an
   all-zero GUID at offset 496. Decoded by the OCP layout, those bytes
@@ -163,8 +165,8 @@ Information Extended log.
   mismatch the same as "page absent".
 - **Absent fields.** Any field may be reported as all ones, meaning "not
   implemented". Such fields are omitted from the scrape rather than
-  exported as zero. A KIOXIA KCD8XRUG1T92 does this for Bad System NAND
-  Blocks.
+  exported as zero. Every KIOXIA drive measured does this for Bad System
+  NAND Blocks, while reporting the user-area count normally.
 - **Write amplification.** `Data Units Written` from page 0x02
   (`nvme_logpage_written_bytes_total`) is a host-side counter: dividing it by
   itself gives 1.00 on every drive. True write amplification needs page
