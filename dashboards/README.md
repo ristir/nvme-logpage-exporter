@@ -23,7 +23,7 @@ datasource.
 | Inventory | controllers, firmware slots, namespaces |
 | Endurance and wear | wear over time, spare, write rates, write amplification, projected exhaustion |
 | Temperature | composite and per-sensor readings against the drive's own thresholds, throttling |
-| Self-test | outcomes by type, age of the newest result, last outcome over time |
+| Self-test | newest outcome and retained entry counts per drive, age of the newest result |
 | Reliability | critical warning flags, errors, retired blocks, unsafe shutdowns, error log by status |
 | Activity | byte and command rates, controller busy fraction, unaligned I/O |
 | Exporter self-diagnostics | scrape success, log page availability, errors by reason, scrape duration, build info |

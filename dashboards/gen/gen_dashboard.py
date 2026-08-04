@@ -745,16 +745,73 @@ temperature = [
                unit="percentunit", w=24, x=0, y=16),
 ]
 
+SELFTEST_JOIN_LABELS = ["instance", "device", "serial", "job"]
+
+SELFTEST_ALL = f"nvme_logpage_self_test_results{{{SEL}}}"
+
+# Every column is wrapped in sum by(): it drops __name__, which joinByLabels
+# would otherwise join on, splitting each drive across one row per query.
+# A filtered count matches no series at all on a drive without that outcome, so
+# the `or` arm supplies the zero the join would otherwise leave blank.
+SELFTEST_COLUMNS = [
+    ("newest", f"nvme_logpage_self_test_last_result{{{SEL}}}", "Newest outcome"),
+    ("entries", SELFTEST_ALL, "Entries"),
+    ("passed", f'nvme_logpage_self_test_results{{{SEL}, result="passed"}}',
+     "Passed"),
+    ("failed", f'nvme_logpage_self_test_results{{{SEL}, '
+     f'result=~"fatal_error|failed_.*"}}', "Failed"),
+]
+
+SELFTEST_ZERO_FILLED = {"passed", "failed"}
+
+
+def selftest_column_target(key, expr, ref):
+    by = f"sum by ({', '.join(SELFTEST_JOIN_LABELS)})"
+    agg = f"{by} ({expr})"
+    if key in SELFTEST_ZERO_FILLED:
+        agg = f"({agg} or {by} ({SELFTEST_ALL}) * 0)"
+    return tgt(f'label_replace({agg}, "metric", "{key}", "", "")',
+               instant=True, ref=ref)
+
+
 self_test = [
-    table("Self-test outcomes",
-          [tgt(f"nvme_logpage_self_test_results{{{SEL}}}", instant=True)],
-          "Entries the drive retains, by outcome and test type. Aborted is "
-          "neither a pass nor a failure: the run stopped for a reason outside "
-          "the medium, most often a controller reset. Only fatal_error and the "
-          "failed_* outcomes indict the drive. A drive nobody has asked to "
-          "self-test shows nothing here, which is not the same as passing.",
-          transformations=[organize(exclude=("Time", "__name__", "job"))],
-          w=12, h=8, x=0, y=0),
+    table("Self-test log",
+          [selftest_column_target(k, e, chr(65 + i))
+           for i, (k, e, _) in enumerate(SELFTEST_COLUMNS)],
+          "One row per drive. Newest outcome is the result of the most recent "
+          "run; the counts cover every entry the log still holds, so a drive "
+          "that failed once and passes now shows both. Aborted is neither a "
+          "pass nor a failure: the run stopped for a reason outside the medium, "
+          "most often a controller reset, which is why the aborted outcomes are "
+          "left out of Failed. A drive nobody has asked to self-test is absent "
+          "here, which is not the same as passing.",
+          transformations=[
+              {"id": "joinByLabels", "options": {"value": "metric",
+                                                 "join": SELFTEST_JOIN_LABELS}},
+              organize(
+                  exclude=["job"],
+                  rename={"instance": "Host", "device": "Device",
+                          "serial": "Serial",
+                          **{k: title for k, _, title in SELFTEST_COLUMNS}},
+                  order=["instance", "device", "serial"]
+                        + [k for k, _, _ in SELFTEST_COLUMNS],
+              ),
+          ],
+          overrides=[
+              {"matcher": {"id": "byName", "options": "Newest outcome"},
+               "properties": [
+                   {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                   {"id": "mappings", "value": MAP_SELFTEST},
+               ]},
+              {"matcher": {"id": "byName", "options": "Failed"},
+               "properties": [
+                   {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                   {"id": "thresholds", "value": {"mode": "absolute", "steps": [
+                       {"color": "text", "value": None},
+                       {"color": "red", "value": 1}]}},
+               ]},
+          ],
+          sort_by="Newest outcome", w=24, h=10, x=0, y=0),
     timeseries("Hours since the last self-test",
                [tgt(f"(nvme_logpage_power_on_seconds_total{{{SEL}}} - "
                     f"on(job, instance, device, serial) "
@@ -763,13 +820,7 @@ self_test = [
                "Drive power-on time elapsed since the newest entry. The log "
                "carries no clock, so age is measured in the drive's own hours "
                "rather than wall time.",
-               unit="h", w=12, x=12, y=0),
-    state_timeline("Last self-test outcome",
-                   [tgt(f"nvme_logpage_self_test_last_result{{{SEL}}}",
-                        "{{instance}} {{device}}")],
-                   "Outcome code of the newest entry. Absent where the drive "
-                   "has never run one.",
-                   MAP_SELFTEST, w=24, x=0, y=8),
+               unit="h", w=24, x=0, y=10),
 ]
 
 reliability = [
