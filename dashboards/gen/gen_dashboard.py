@@ -909,7 +909,20 @@ panels.append(row("Reliability", reliability, y=35))
 panels.append(row("Activity", activity, y=36))
 panels.append(row("Exporter self-diagnostics", exporter, y=37))
 
+# grafana.com serves the file as-is on import, and rejects a dashboard that
+# carries a numeric id from someone else's Grafana.
+REQUIRES = [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+] + [
+    {"type": "panel", "id": p, "name": p, "version": ""}
+    for p in ["gauge", "piechart", "row", "stat", "state-timeline", "table", "timeseries"]
+] + [
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+]
+
 dashboard = {
+    "__requires": REQUIRES,
+    "id": None,
     "annotations": {"list": []},
     "editable": True,
     "graphTooltip": 1,
