@@ -64,7 +64,7 @@
   "links": [],
   "panels": [
     {
-      "id": 48,
+      "id": 49,
       "type": "row",
       "title": "Fleet health",
       "collapsed": false,
@@ -870,7 +870,7 @@
       }
     },
     {
-      "id": 49,
+      "id": 50,
       "type": "row",
       "title": "Worst offenders",
       "collapsed": false,
@@ -1436,7 +1436,7 @@
       }
     },
     {
-      "id": 50,
+      "id": 51,
       "type": "row",
       "title": "Inventory",
       "collapsed": true,
@@ -1954,7 +1954,7 @@
       ]
     },
     {
-      "id": 51,
+      "id": 52,
       "type": "row",
       "title": "Endurance and wear",
       "collapsed": true,
@@ -2636,11 +2636,75 @@
               }
             ]
           }
+        },
+        {
+          "id": 26,
+          "type": "histogram",
+          "title": "Drive age distribution",
+          "description": "Power-on days per drive, bucketed by quarter. Drives arrive in batches, so the peaks are purchase orders \u2014 and a batch reaching end of warranty together is worth knowing before it does. Power-on time is not shelf time: a drive counts only the hours it was actually running.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "expr": "nvme_logpage_power_on_seconds_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} / 86400",
+              "legendFormat": "",
+              "range": false,
+              "instant": true,
+              "format": "time_series",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "fillOpacity": 80,
+                "lineWidth": 1,
+                "gradientMode": "none"
+              },
+              "unit": "d",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "bucketOffset": 0,
+            "combine": true,
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "bucketSize": 90
+          }
         }
       ]
     },
     {
-      "id": 52,
+      "id": 53,
       "type": "row",
       "title": "Temperature",
       "collapsed": true,
@@ -2652,7 +2716,7 @@
       },
       "panels": [
         {
-          "id": 26,
+          "id": 27,
           "type": "timeseries",
           "title": "Composite temperature vs the drive's own thresholds",
           "description": "Thresholds come from Identify Controller, per drive. They span 17 degrees across this fleet, so a fixed line drawn at 70 C would be at the normal operating point for some models and far above it for others.",
@@ -2755,7 +2819,7 @@
           }
         },
         {
-          "id": 27,
+          "id": 28,
           "type": "timeseries",
           "title": "Per-sensor temperature",
           "description": "Individual sensors, where the controller implements them. Sensors reading zero are not implemented and are not emitted.",
@@ -2832,7 +2896,7 @@
           }
         },
         {
-          "id": 28,
+          "id": 29,
           "type": "timeseries",
           "title": "Time fraction above temperature thresholds",
           "description": "Fraction of wall-clock time spent over each threshold. A sustained value near 1 means the drive is permanently hot.",
@@ -2922,7 +2986,7 @@
           }
         },
         {
-          "id": 29,
+          "id": 30,
           "type": "timeseries",
           "title": "Thermal throttling",
           "description": "Throttling currently applied, from the OCP log, alongside the time fraction spent in each thermal management level from the health log. Both read zero on every drive checked so far.",
@@ -3014,7 +3078,7 @@
       ]
     },
     {
-      "id": 53,
+      "id": 54,
       "type": "row",
       "title": "Self-test",
       "collapsed": true,
@@ -3026,7 +3090,7 @@
       },
       "panels": [
         {
-          "id": 30,
+          "id": 31,
           "type": "table",
           "title": "Self-test log",
           "description": "One row per drive. Newest outcome is the result of the most recent run; the counts cover every entry the log still holds, so a drive that failed once and passes now shows both. Aborted is neither a pass nor a failure: the run stopped for a reason outside the medium, most often a controller reset, which is why the aborted outcomes are left out of Failed. A drive nobody has asked to self-test is absent here, which is not the same as passing.",
@@ -3277,7 +3341,7 @@
           }
         },
         {
-          "id": 31,
+          "id": 32,
           "type": "timeseries",
           "title": "Hours since the last self-test",
           "description": "Drive power-on time elapsed since the newest entry. The log carries no clock, so age is measured in the drive's own hours rather than wall time.",
@@ -3356,7 +3420,7 @@
       ]
     },
     {
-      "id": 54,
+      "id": 55,
       "type": "row",
       "title": "Reliability",
       "collapsed": true,
@@ -3368,7 +3432,7 @@
       },
       "panels": [
         {
-          "id": 32,
+          "id": 33,
           "type": "state-timeline",
           "title": "Critical warning flags",
           "description": "Only flags that are actually set are plotted \u2014 an unfiltered version draws one lane per device per flag and is unreadable past a handful of hosts. Empty means nothing is set.",
@@ -3449,7 +3513,7 @@
           }
         },
         {
-          "id": 33,
+          "id": 34,
           "type": "timeseries",
           "title": "Media errors (rate)",
           "description": "Unrecovered data integrity errors per second. Any sustained non-zero value is serious.",
@@ -3526,7 +3590,7 @@
           }
         },
         {
-          "id": 34,
+          "id": 35,
           "type": "timeseries",
           "title": "Uncorrectable read errors (rate, OCP)",
           "description": "From the OCP log: reads the controller could not correct.",
@@ -3603,7 +3667,7 @@
           }
         },
         {
-          "id": 35,
+          "id": 36,
           "type": "timeseries",
           "title": "Retired NAND blocks (OCP)",
           "description": "Blocks the controller has taken out of service. A field a controller reports as unimplemented is omitted entirely rather than shown as zero, so a missing series here means 'not reported', not 'none'.",
@@ -3680,7 +3744,7 @@
           }
         },
         {
-          "id": 36,
+          "id": 37,
           "type": "timeseries",
           "title": "Unsafe shutdowns and power cycles (rate)",
           "description": "An unsafe shutdown count that tracks the power cycle count means the host is not shutting the drive down cleanly.",
@@ -3770,7 +3834,7 @@
           }
         },
         {
-          "id": 37,
+          "id": 38,
           "type": "table",
           "title": "Error log entries by status",
           "description": "Every entry the drive's Error Information log retains, grouped by status. The log holds ELPE+1 entries, 64 to 256 on the hardware surveyed, and the exporter reads all of them. Diagnostic only. Note that this includes admin commands rejected because the drive does not implement them \u2014 including probes from other monitoring tools on the same host \u2014 so it is not a health signal on its own.",
@@ -3854,7 +3918,7 @@
       ]
     },
     {
-      "id": 55,
+      "id": 56,
       "type": "row",
       "title": "Activity",
       "collapsed": true,
@@ -3866,7 +3930,7 @@
       },
       "panels": [
         {
-          "id": 38,
+          "id": 39,
           "type": "timeseries",
           "title": "Host byte rate",
           "description": "Throughput as the controller counts it.",
@@ -3956,7 +4020,7 @@
           }
         },
         {
-          "id": 39,
+          "id": 40,
           "type": "timeseries",
           "title": "Host command rate",
           "description": "Commands per second. Divided into the byte rate beside it this gives average request size.",
@@ -4046,7 +4110,7 @@
           }
         },
         {
-          "id": 40,
+          "id": 41,
           "type": "timeseries",
           "title": "Controller busy fraction",
           "description": "Fraction of time the controller spent processing commands. Approaching 1 means the drive, not the host, is the bottleneck.",
@@ -4123,7 +4187,7 @@
           }
         },
         {
-          "id": 41,
+          "id": 42,
           "type": "timeseries",
           "title": "Unaligned I/O (rate, OCP)",
           "description": "Host operations not aligned to the controller's internal granularity. A high rate is a direct cause of write amplification.",
@@ -4202,7 +4266,7 @@
       ]
     },
     {
-      "id": 56,
+      "id": 57,
       "type": "row",
       "title": "Exporter self-diagnostics",
       "collapsed": true,
@@ -4214,7 +4278,7 @@
       },
       "panels": [
         {
-          "id": 42,
+          "id": 43,
           "type": "timeseries",
           "title": "Devices failing to scrape",
           "description": "A count, not one lane per device: at fleet scale a per-device state timeline is an unreadable smear. Flat zero is healthy; the table beside it names whoever is not.",
@@ -4292,7 +4356,7 @@
           }
         },
         {
-          "id": 43,
+          "id": 44,
           "type": "table",
           "title": "Devices failing right now",
           "description": "Empty is the healthy state. Cross-reference the reason in \"Errors by reason\" below: 'open' means device-file permissions, 'capability' means CAP_SYS_ADMIN.",
@@ -4372,7 +4436,7 @@
           }
         },
         {
-          "id": 44,
+          "id": 45,
           "type": "timeseries",
           "title": "Devices serving each log page",
           "description": "One line per page rather than one per device and page, which is 112 lanes on this fleet alone. Pages 0x01, 0x02 and 0x03 are mandatory, so those lines should track the device count; 0xC0 is expected to be lower, since client-class drives and the Intel and Dell units do not serve it.",
@@ -4450,7 +4514,7 @@
           }
         },
         {
-          "id": 45,
+          "id": 46,
           "type": "timeseries",
           "title": "Errors by reason (rate)",
           "description": "\"No data\" here means no device has ever failed, which is the healthy state. 'open' means the device file could not be opened \u2014 install the udev rule. 'capability' means it opened but the ioctl was refused \u2014 check AmbientCapabilities.",
@@ -4527,7 +4591,7 @@
           }
         },
         {
-          "id": 46,
+          "id": 47,
           "type": "timeseries",
           "title": "Scrape duration",
           "description": "Time to poll one device. Single-digit milliseconds is normal; this exporter issues ioctls directly rather than forking a helper per scrape.",
@@ -4604,7 +4668,7 @@
           }
         },
         {
-          "id": 47,
+          "id": 48,
           "type": "table",
           "title": "Exporter build",
           "description": "Version of the exporter running on each host \u2014 check here first when a metric is missing on some hosts but not others. The build-tag field is dropped: this project uses none, so it always reads \"unknown\".",
@@ -4805,5 +4869,5 @@
   "title": "NVMe logpage exporter",
   "uid": "nvme-logpage-exporter",
   "version": 1,
-  "description": "NVMe health from log pages read directly over ioctl. The top two rows are aggregates and topk tables, so they stay the same size on a fleet of five hundred hosts as on one; per-device detail is in the collapsed rows below and is meant to be reached by selecting a host."
+  "description": "NVMe health from log pages read over ioctl. Fleet-wide aggregates on top, per-device detail in the collapsed rows."
 }

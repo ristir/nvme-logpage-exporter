@@ -181,6 +181,37 @@ def state_timeline(title, targets, desc, mappings, w=24, h=8, x=0, y=0):
     }
 
 
+def histogram(title, targets, desc, unit="none", bucket=None, w=12, h=8,
+              x=0, y=0):
+    return {
+        "id": nid(),
+        "type": "histogram",
+        "title": title,
+        "description": desc,
+        "datasource": DS,
+        "gridPos": {"h": h, "w": w, "x": x, "y": y},
+        "targets": targets,
+        "fieldConfig": {
+            "defaults": {
+                "custom": {"fillOpacity": 80, "lineWidth": 1,
+                           "gradientMode": "none"},
+                "unit": unit,
+                "color": {"mode": "palette-classic"},
+                "thresholds": {"mode": "absolute",
+                               "steps": [{"color": "green", "value": None}]},
+            },
+            "overrides": [],
+        },
+        "options": {
+            "bucketOffset": 0,
+            "combine": True,
+            "legend": {"displayMode": "list", "placement": "bottom",
+                       "showLegend": False},
+            **({"bucketSize": bucket} if bucket else {}),
+        },
+    }
+
+
 def row(title, panels, collapsed=True, y=0):
     return {
         "id": nid(),
@@ -707,6 +738,16 @@ endurance = [
               ],
           }],
           w=12, h=8, x=12, y=16, sort_by="Time left", sort_desc=False),
+    histogram(
+        "Drive age distribution",
+        [tgt(f"nvme_logpage_power_on_seconds_total{{{SEL}}} / 86400",
+             instant=True)],
+        "Power-on days per drive, bucketed by quarter. Drives arrive in "
+        "batches, so the peaks are purchase orders — and a batch reaching end "
+        "of warranty together is worth knowing before it does. Power-on time "
+        "is not shelf time: a drive counts only the hours it was actually "
+        "running.",
+        unit="d", bucket=90, w=12, h=8, x=12, y=24),
 ]
 
 temperature = [
@@ -1029,10 +1070,8 @@ dashboard = {
     "uid": "nvme-logpage-exporter",
     "version": 1,
     "description": (
-        "NVMe health from log pages read directly over ioctl. The top two "
-        "rows are aggregates and topk tables, so they stay the same size on "
-        "a fleet of five hundred hosts as on one; per-device detail is in the "
-        "collapsed rows below and is meant to be reached by selecting a host."
+        "NVMe health from log pages read over ioctl. Fleet-wide aggregates on "
+        "top, per-device detail in the collapsed rows."
     ),
 }
 

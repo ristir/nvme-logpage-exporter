@@ -21,7 +21,7 @@ datasource.
 | Fleet health | totals, unhealthy devices, failing scrapes, worst endurance, model breakdown |
 | Worst offenders | `topk` and `bottomk` tables bounded by `top_n` |
 | Inventory | controllers, firmware slots, namespaces |
-| Endurance and wear | wear over time, spare, write rates, write amplification, projected exhaustion |
+| Endurance and wear | wear over time, spare, write rates, write amplification, projected exhaustion, drive age distribution |
 | Temperature | composite and per-sensor readings against the drive's own thresholds, throttling |
 | Self-test | newest outcome and retained entry counts per drive, age of the newest result |
 | Reliability | critical warning flags, errors, retired blocks, unsafe shutdowns, error log by status |
