@@ -79,10 +79,12 @@ func ParseSelfTest(b []byte) (*SelfTest, error) {
 	return s, nil
 }
 
-// Aborted runs are neither passes nor failures: the drive stopped for a reason
-// outside the medium, most often a controller reset.
+// Passed reports whether the run completed without error. Aborted runs are
+// neither passes nor failures: the drive stopped for a reason outside the
+// medium, most often a controller reset.
 func (r SelfTestResult) Passed() bool { return r.Result == 0 }
 
+// Failed reports whether the drive found a defect, as opposed to giving up.
 func (r SelfTestResult) Failed() bool {
 	switch r.Result {
 	case 5, 6, 7:

@@ -19,7 +19,7 @@ type selfTestSource struct {
 	page []byte
 }
 
-func (s selfTestSource) LogPage(ctx context.Context, controller string, id uint8, size int) ([]byte, error) {
+func (s selfTestSource) LogPage(_ context.Context, _ string, id uint8, _ int) ([]byte, error) {
 	if id == logpage.IDSelfTest {
 		if s.page == nil {
 			return nil, nvme.ErrPageUnsupported
