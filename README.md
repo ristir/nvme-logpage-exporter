@@ -42,64 +42,89 @@ roughly **17 degrees** — from about 70°C on some controllers up to about
 87°C on another. A single hardcoded threshold would be wrong for most of
 that range in one direction or the other.
 
-## What it exports today
+## Metrics
 
-- **Health log (page 0x02):** critical warning, decomposed into one
-  `nvme_logpage_critical_warning_flag{flag=...}` series per condition instead
-  of a raw bitfield; temperature (composite and, where present, individual
-  sensors); available spare and its threshold; percentage used;
-  data units read/written converted to bytes; host read/write commands;
-  controller busy time; power cycles and power-on time; unsafe shutdowns;
-  media errors; error log entry count; and time spent above the warning
-  and critical temperature thresholds.
-- **Controller state**, from `/sys/class/nvme/nvmeN/state`, as two
-  metrics that answer two different questions:
-  `nvme_logpage_controller_state{state}` carries the kernel's own string
-  for diagnosis, and `nvme_logpage_controller_live` is a plain 1/0 to
-  alert on. Worth having because a controller that is not live refuses
-  admin commands: without it, a drive stuck in `resetting` produces a wall
-  of read timeouts that look like a defect in the exporter. See
-  "Controller state" below for why it is two metrics and not one.
-- **Identify Controller:** model, firmware, vendor ID, NVMe version,
-  total capacity, maximum and active namespace counts, and the WCTEMP/
-  CCTEMP temperature thresholds described above.
-- **sysfs:** namespace size and logical block size, and namespace
-  membership in a Linux `md` software RAID array, so the namespace
-  metrics can be joined against `node_disk_*` and `node_md_*` from
-  `node_exporter`.
-- **Self-diagnostics:** `nvme_logpage_scrape_success`,
-  `nvme_logpage_scrape_duration_seconds`,
-  `nvme_logpage_errors_total{reason}`,
-  `nvme_logpage_supported{page}`, `nvme_logpage_devices_discovered`, and
-  the standard `nvme_logpage_build_info`.
-- **OCP extended health log (page 0xC0), on drives that have it:**
-  `nvme_logpage_media_written_bytes_total`, `nvme_logpage_media_read_bytes_total`,
-  `nvme_logpage_bad_nand_blocks_total{area}` and
-  `nvme_logpage_bad_nand_blocks_normalized{area}` (`area` is `user` or
-  `system`), `nvme_logpage_xor_recovery_total`,
-  `nvme_logpage_uncorrectable_read_errors_total`,
-  `nvme_logpage_soft_ecc_errors_total`, `nvme_logpage_e2e_errors_detected_total`,
-  `nvme_logpage_e2e_errors_corrected_total`, `nvme_logpage_system_area_used_ratio`,
-  `nvme_logpage_refresh_count_total`, `nvme_logpage_user_erase_cycles_max`,
-  `nvme_logpage_user_erase_cycles_min`, `nvme_logpage_thermal_throttle_events_total`,
-  `nvme_logpage_thermal_throttle_ratio`, `nvme_logpage_pcie_correctable_errors_total`,
-  `nvme_logpage_incomplete_shutdowns_total`, `nvme_logpage_free_blocks_ratio`,
-  `nvme_logpage_capacitor_health`, `nvme_logpage_unaligned_io_total`,
-  `nvme_logpage_security_version`, `nvme_logpage_namespace_used_bytes`,
-  `nvme_logpage_plp_starts_total`, `nvme_logpage_endurance_estimate_bytes`,
-  and `nvme_logpage_ocp_info{version}`. See "OCP extended health log" below.
-- **Firmware Slot Information (page 0x03):**
-  `nvme_logpage_firmware_slot_info{slot,revision}` (one series per populated
-  slot), `nvme_logpage_firmware_active_slot`, and `nvme_logpage_firmware_next_slot`
-  (emitted only while an activation is pending).
-- **Error Information (page 0x01):**
-  `nvme_logpage_error_log_retained_entries{status_code_type,status_code}` —
-  every entry the log retains, grouped by status. Its length is ELPE+1 from
-  Identify Controller, 64 to 256 entries on the hardware surveyed, and the
-  read is sized to match. A fixed 512-byte read would have covered 8: one
-  drive here fills all 64. Diagnostic only: the log survives resets and
-  carries no timestamp, and it counts admin commands the drive rejected as
-  unimplemented, including probes from other tools on the same host.
+Every metric carries the `device` and `serial` labels; the table lists only
+the labels that come in addition. The `nvme_logpage_` prefix is omitted from
+the names.
+
+**Source** is where the value comes from: a log page by its identifier,
+`Identify` for Identify Controller, `sysfs` for what the kernel knows without
+asking the drive, and `exporter` for the exporter's own diagnostics. A drive
+that does not serve page 0xC0 loses those 25 metrics and nothing else.
+
+A drive that does not serve a given log page simply omits its metrics and says
+so in `supported`. Fields the controller reports as not implemented are omitted
+rather than exported as zero.
+
+| Name | Source | Type | Extra labels | Description |
+|---|---|---|---|---|
+| `available_spare_ratio` | 0x02 | gauge | — | Available spare capacity as a fraction of the original, 0..1. |
+| `available_spare_threshold_ratio` | 0x02 | gauge | — | Spare capacity threshold below which the controller raises a warning, 0..1. |
+| `bad_nand_blocks_normalized` | 0xC0 | gauge | `area` | Vendor-normalized health value for retired NAND blocks, by area. |
+| `bad_nand_blocks_total` | 0xC0 | counter | `area` | Number of NAND blocks retired, by area. |
+| `build_info` | exporter | gauge | `branch`, `goarch`, `goos`, `goversion`, `revision`, `tags`, `version` | Build version, revision, branch and Go toolchain. |
+| `capacitor_health` | 0xC0 | gauge | — | Power-loss-protection capacitor health, on a vendor-defined scale. |
+| `capacity_bytes` | Identify | gauge | — | Total NVM capacity in bytes. |
+| `composite_temperature_celsius` | 0x02 | gauge | — | Composite temperature in degrees Celsius, as reported by the controller. |
+| `composite_temperature_critical_threshold_celsius` | Identify | gauge | — | Critical threshold for the composite temperature reported by the controller (CCTEMP). |
+| `composite_temperature_warning_threshold_celsius` | Identify | gauge | — | Warning threshold for the composite temperature reported by the controller (WCTEMP). |
+| `controller_busy_seconds_total` | 0x02 | counter | — | Time the controller spent processing commands, in seconds. |
+| `controller_live` | sysfs | gauge | — | 1 if the kernel reports the controller as live, 0 for any other state. |
+| `controller_state` | sysfs | gauge | `state` | Driver state of the controller from sysfs, as one series for the current state. |
+| `critical_temperature_seconds_total` | 0x02 | counter | — | Time in seconds spent above the critical temperature threshold. |
+| `critical_warning_flag` | 0x02 | gauge | `flag` | A bit of the Critical Warning field from the health log: 1 if set. |
+| `device_info` | Identify | gauge | `firmware`, `model`, `nvme_version`, `vendor_id` | Inventory attributes of the device. |
+| `devices_discovered` | exporter | gauge | no labels | Number of NVMe controllers found during enumeration. |
+| `e2e_errors_corrected_total` | 0xC0 | counter | — | Number of end-to-end data protection errors corrected. |
+| `e2e_errors_detected_total` | 0xC0 | counter | — | Number of end-to-end data protection errors detected. |
+| `endurance_estimate_bytes` | 0xC0 | gauge | — | Manufacturer's estimate of total bytes writable over the drive's lifetime at a write amplification of 1. |
+| `endurance_used_ratio` | 0x02 | gauge | — | Consumed write endurance as a fraction, 0..1. |
+| `error_log_entries_total` | 0x02 | counter | — | Number of entries added to the Error Information Log over the drive's lifetime. |
+| `error_log_retained_entries` | 0x01 | gauge | `status_code`, `status_code_type` | Number of entries retained in the Error Information log, grouped by status. |
+| `errors_total` | exporter | counter | `reason` | Number of device-polling failures, broken down by reason. |
+| `firmware_active_slot` | 0x03 | gauge | — | Slot the controller is currently running firmware from. |
+| `firmware_next_slot` | 0x03 | gauge | — | Slot that will be activated at the next controller reset. |
+| `firmware_slot_info` | 0x03 | gauge | `revision`, `slot` | Firmware revision held in a slot. |
+| `free_blocks_ratio` | 0xC0 | gauge | — | Free NAND blocks as a fraction of the total, 0..1. |
+| `host_read_commands_total` | 0x02 | counter | — | Number of read commands received from the host. |
+| `host_write_commands_total` | 0x02 | counter | — | Number of write commands received from the host. |
+| `incomplete_shutdowns_total` | 0xC0 | counter | — | Number of shutdowns the controller did not complete cleanly, from the OCP log (page 0xC0). |
+| `media_errors_total` | 0x02 | counter | — | Number of unrecovered data integrity errors. |
+| `media_read_bytes_total` | 0xC0 | counter | — | Bytes read from the NAND, from the OCP extended health log. |
+| `media_written_bytes_total` | 0xC0 | counter | — | Bytes written to the NAND, from the OCP extended health log. |
+| `namespace_md_info` | sysfs | gauge | `md`, `namespace` | Namespace membership in a Linux md array. |
+| `namespace_sector_bytes` | sysfs | gauge | `namespace` | Namespace logical block size in bytes. |
+| `namespace_size_bytes` | sysfs | gauge | `namespace` | Namespace size in bytes. |
+| `namespace_used_bytes` | 0xC0 | gauge | `namespace` | Bytes in use on namespace 1, from the OCP NUSE field, which is defined for that namespace alone. |
+| `namespaces_active` | sysfs | gauge | — | Number of namespaces that actually exist. |
+| `namespaces_max` | Identify | gauge | — | Maximum number of namespaces supported by the controller (field NN). |
+| `ocp_info` | 0xC0 | gauge | `version` | Presence of an OCP extended health log, with its version as a label. |
+| `pcie_correctable_errors_total` | 0xC0 | counter | — | Number of correctable errors reported by the PCIe link. |
+| `plp_starts_total` | 0xC0 | counter | — | Number of times power-loss protection engaged. |
+| `power_cycles_total` | 0x02 | counter | — | Number of power cycles. |
+| `power_on_seconds_total` | 0x02 | counter | — | Power-on time in seconds. |
+| `read_bytes_total` | 0x02 | counter | — | Bytes read by the host. |
+| `refresh_count_total` | 0xC0 | counter | — | Number of block refresh operations performed by the controller. |
+| `scrape_duration_seconds` | exporter | gauge | — | Duration of polling a single device, in seconds. |
+| `scrape_success` | exporter | gauge | — | 1 if the device was polled successfully in full; 0 on any failure. |
+| `security_version` | 0xC0 | gauge | — | Security version number reported by the controller. |
+| `soft_ecc_errors_total` | 0xC0 | counter | — | Number of correctable ECC errors. |
+| `supported` | exporter | gauge | `page` | 1 if the controller serves this log page; 0 if it does not support it. |
+| `system_area_used_ratio` | 0xC0 | gauge | — | Consumed endurance of the controller's system data area as a fraction, 0..1. |
+| `temperature_celsius` | 0x02 | gauge | `sensor` | Temperature in degrees Celsius of an individual numbered sensor (1..8). |
+| `thermal_seconds_total` | 0x02 | counter | `level` | Total time spent in thermal throttling, in seconds, by level. |
+| `thermal_throttle_events_total` | 0xC0 | counter | — | Number of thermal throttling activations, from the OCP log (page 0xC0). |
+| `thermal_throttle_ratio` | 0xC0 | gauge | — | Throttling currently applied, as a fraction 0..1. |
+| `thermal_transitions_total` | 0x02 | counter | `level` | Number of thermal throttling activations from the health log, by level. |
+| `unaligned_io_total` | 0xC0 | counter | — | Number of host I/O operations not aligned to the controller's internal granularity. |
+| `uncorrectable_read_errors_total` | 0xC0 | counter | — | Number of read errors the controller could not correct. |
+| `unsafe_shutdowns_total` | 0x02 | counter | — | Number of unsafe shutdowns, from the health log (page 0x02). |
+| `user_erase_cycles_max` | 0xC0 | gauge | — | Highest program/erase cycle count across user-data blocks. |
+| `user_erase_cycles_min` | 0xC0 | gauge | — | Lowest program/erase cycle count across user-data blocks. |
+| `warning_temperature_seconds_total` | 0x02 | counter | — | Time in seconds spent above the warning temperature threshold. |
+| `written_bytes_total` | 0x02 | counter | — | Bytes written by the host. |
+| `xor_recovery_total` | 0xC0 | counter | — | Number of times the controller recovered data using XOR parity. |
 
 This has been checked against real hardware: 29 models from 5 vendors, in
 production rather than on a bench. On a Samsung PM9A1, all 20 comparable metrics
