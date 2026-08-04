@@ -4,7 +4,6 @@ kind: Namespace
 metadata:
   name: nvme-logpage-exporter
   labels:
-    # SYS_ADMIN is rejected by the baseline and restricted standards.
     pod-security.kubernetes.io/enforce: privileged
 ---
 apiVersion: apps/v1
@@ -29,10 +28,7 @@ spec:
         prometheus.io/port: "10192"
         prometheus.io/path: /metrics
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
-      # Nodes without NVMe never schedule a pod, so the DaemonSet can target
-      # every node without wasting one per diskless VM.
+      automountServiceAccountToken: false
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -51,15 +47,11 @@ spec:
           ports:
             - name: metrics
               containerPort: 10192
-              hostPort: 10192
           securityContext:
-            # privileged, unlike under Docker, where --cap-add=SYS_ADMIN plus
-            # --device is enough. Kubernetes has no field for a device cgroup
-            # rule, and a hostPath /dev alone gets EPERM on open: measured, not
-            # assumed. A device plugin is the only other way out.
+            # Kubernetes has no field for a device cgroup rule, so a hostPath
+            # /dev without this gets EPERM on open. A device plugin writes one.
             privileged: true
-            # uid 0 as well: an added capability lands in the bounding set, and
-            # reaches the effective set for uid 0 alone.
+            # A capability reaches the effective set for uid 0 alone.
             runAsUser: 0
             runAsGroup: 0
             readOnlyRootFilesystem: true

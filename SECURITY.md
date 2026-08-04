@@ -90,9 +90,10 @@ monitoring backend and, wherever `remote_write` is configured, forwarded on
 — including to third-party SaaS. Serial numbers and firmware revisions leave
 the perimeter with the metrics unless they are dropped by relabelling first.
 
-**The endpoint is unauthenticated by default**, and in the DaemonSet it is
-exposed with `hostNetwork: true` and `hostPort: 10192` — bound to the node's
-network interfaces rather than reachable only inside the cluster network.
+**The endpoint is unauthenticated by default.** The shipped DaemonSet keeps
+it on the pod network — no `hostNetwork`, no `hostPort` — so inside a cluster
+it is reachable only from the cluster network. On a host, it listens on
+every interface unless told otherwise.
 
 Two ways to close it:
 
@@ -187,8 +188,17 @@ node.
 
 `--device` under Docker writes a device cgroup rule. Kubernetes has no field
 that writes one, and a hostPath `/dev` without it returns `EPERM` on open.
-A device plugin is the only way to narrow this, at the cost of another
-component to operate.
+
+A device plugin writes that rule through the kubelet, which is what would
+allow `privileged: true` to be replaced by `capabilities: {drop: [ALL], add:
+[SYS_ADMIN]}`. Note that the runtime's default seccomp profile allows
+`mount`, `setns` and `unshare` whenever `CAP_SYS_ADMIN` is present, so
+recovering it narrows less than it appears; the AppArmor profile and the
+smaller capability set are where the difference is.
+
+The pod does not mount a service account token and does not use
+`hostNetwork` or `hostPort`: scraping goes to the pod address on the cluster
+network.
 
 **Prefer the systemd unit on bare metal.** Use the DaemonSet where nodes are
 managed only through Kubernetes, and weigh the wider grant against that
