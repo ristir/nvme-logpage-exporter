@@ -26,6 +26,23 @@ RestrictAddressFamilies=AF_INET AF_INET6
 RestrictNamespaces=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+ProtectKernelModules=true
+PrivateIPC=true
+RemoveIPC=true
+ProtectKernelLogs=true
+ProtectHostname=true
+ProtectClock=true
+ProtectProc=invisible
+UMask=0077
+
+# The capability reaches whatever device the process can open, so the cgroup
+# narrows that to the NVMe controller nodes. Their major is dynamic, hence the
+# name: char-nvme resolves through /proc/devices. Read is enough — the device
+# cgroup gates open(), and the passthrough goes to a read-only descriptor.
+DevicePolicy=closed
+DeviceAllow=char-nvme r
 
 # Includes ioctl. Tightening this breaks the passthrough entirely.
 SystemCallFilter=@system-service

@@ -35,7 +35,9 @@ Measured with `--cap-drop=ALL` and nothing added:
 | 5.15 | `EACCES` | `EACCES` | 0 |
 
 The 28 are `device_info` plus scrape-level series; no drive health figures
-among them.
+among them. Totals here and below are per host and scale with the drive
+count: 136 on the host in this table, 134 on the two-drive host used for the
+systemd measurements.
 
 **With the capability granted, every one of those kernels works normally.**
 The table describes what is lost by withholding it, not a compatibility
@@ -45,6 +47,8 @@ Dropping the capability after opening the device files does not help
 either: the kernel checks on every ioctl, not at `open`.
 
 ## What the process can do with it
+
+### In the shipped binary
 
 - **No subprocesses.** `os/exec` is not imported anywhere in the tree. There
   is no `smartctl` to substitute, no argument to inject, no `PATH` to
@@ -74,6 +78,22 @@ pre-sized buffer with Go's bounds checking, and the parsers are fuzzed in
 CI. A hostile drive can produce wrong numbers; it does not get to reach
 past the buffer.
 
+### After a compromise
+
+The list above describes the binary as shipped, not the ceiling on what the
+process may do. An attacker able to execute code in it builds the command
+structure directly: the kernel does not filter on the NVMe opcode, so
+`Format NVM`, `Sanitize` and `Firmware Commit` are reachable through the same
+ioctl that reads a log page, on the same read-only descriptor. Absent opcodes
+in the source raise the bar for reaching that point; they do not bound it.
+
+What still holds comes from the deployment and the kernel, not from the
+source, and so differs between the three. Under the systemd unit the process
+keeps one capability in the bounding set, gains no new privileges, can neither
+create nor join a namespace, and reaches only the NVMe controller nodes.
+Docker and Kubernetes draw those boundaries differently; see What each
+deployment grants.
+
 ## What the endpoint discloses
 
 This is a risk in normal operation, not only after a compromise.
@@ -82,8 +102,8 @@ Every series carries `device` and `serial`; `nvme_logpage_device_info` adds
 the model and the firmware revision, and `nvme_logpage_firmware_slot_info`
 reports the revision in each slot. Taken together, `/metrics` is a hardware
 inventory: which drive models are deployed, their serial numbers, and which
-firmware each one runs. That is a ready-made map of where any
-publicly known vulnerable firmware is installed.
+firmware each one runs. It therefore locates every drive running a firmware
+revision with a published vulnerability.
 
 The exposure does not end at the endpoint. Every label is stored in the
 monitoring backend and, wherever `remote_write` is configured, forwarded on
@@ -120,31 +140,61 @@ RestrictAddressFamilies=AF_INET AF_INET6
 RestrictNamespaces=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+ProtectKernelModules=true
+PrivateIPC=true
+RemoveIPC=true
+ProtectKernelLogs=true
+ProtectHostname=true
+ProtectClock=true
+ProtectProc=invisible
+UMask=0077
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
 DevicePolicy=closed
 DeviceAllow=char-nvme r
 ```
 
-The bounding set holds exactly one capability, so no other can be acquired.
-
-`RestrictNamespaces=true` blocks `unshare` and `setns` outright. That is the
-usual escalation route out of `CAP_SYS_ADMIN`, and Docker's default seccomp
-profile allows both exactly when the capability is present (see Blast
-radius). `MemoryDenyWriteExecute` and `DevicePolicy=closed` have no
-equivalent in the container either.
-
-The unit runs as a dedicated unprivileged user; a udev rule grants that
-user's group read access to the controller nodes only, not to the `disk`
+The unit runs as a dedicated unprivileged user. A udev rule grants that
+user's group read access to the controller nodes only, not through the `disk`
 group that owns every block device.
 
-`SystemCallFilter` is not set by default: on systemd 237 the
-`@system-service` set lacks `arch_prctl` and `sched_getaffinity`, and the Go
-runtime takes `SIGSYS` at startup. Verified working on systemd 255, so where
-the whole fleet is on a recent release, add:
+Metric counts below come from a two-drive host, where this unit exports 134
+series.
 
-```ini
-SystemCallFilter=@system-service
-SystemCallErrorNumber=EPERM
-```
+| Directive | Effect | Metrics |
+|---|---|---|
+| `AmbientCapabilities=CAP_SYS_ADMIN` | Permits `NVME_IOCTL_ADMIN_CMD`; nothing else in the unit substitutes for it | Full set. Without it, no log page is readable: scrape-level series only, no drive health |
+| `CapabilityBoundingSet=CAP_SYS_ADMIN` | No second capability can be acquired, including through a setuid binary | Unchanged |
+| `NoNewPrivileges=true` | Blocks privilege gain across `execve` | Unchanged |
+| `ProtectSystem=strict`, `ProtectHome`, `PrivateTmp` | The whole filesystem hierarchy is mounted read-only except what `ReadWritePaths=` names; `/home` is inaccessible and `/tmp` is private to the service | Unchanged for serving. `dump --out` needs a path listed in `ReadWritePaths=` |
+| `ProtectKernelTunables`, `ProtectControlGroups` | `/proc/sys` and the cgroup tree become read-only | Unchanged |
+| `RestrictAddressFamilies=AF_INET AF_INET6` | No unix sockets, so no credential passing | Unchanged |
+| `RestrictNamespaces=true` | `unshare` and `setns` refused — the usual escalation route out of this capability | Unchanged |
+| `LockPersonality`, `MemoryDenyWriteExecute` | No `personality()` switch, no writable-executable mappings | Unchanged |
+| `RestrictSUIDSGID`, `RestrictRealtime`, `ProtectKernelModules` | No setuid bits created, no realtime scheduling, no module loading or reading | Unchanged |
+| `PrivateIPC`, `RemoveIPC` | Private SysV IPC namespace, and its objects go when the service stops | Unchanged |
+| `ProtectKernelLogs`, `ProtectHostname`, `ProtectClock` | No `dmesg` ring, no hostname change, clock devices read-only | Unchanged |
+| `ProtectProc=invisible`, `UMask=0077` | Other users' processes hidden in `/proc`; files created private | Unchanged |
+| `SystemCallFilter=@system-service` | Denies `mount`, `swapon`, `ptrace`, `bpf`, `perf_event_open`, `quotactl` and the rest of the groups outside that set. Floor of systemd 249: on 237 the set lacks `arch_prctl` and `sched_getaffinity` and the Go runtime takes `SIGSYS` | Unchanged on 249 and newer. On 237 the process does not start, so none |
+| `SystemCallArchitectures=native` | No secondary-architecture entry into the filter | Unchanged |
+| `DevicePolicy=closed` + `DeviceAllow=char-nvme r` | The capability reaches the NVMe controller nodes and nothing else — `/dev/mem`, `/dev/kmsg` and the block nodes return `EPERM` on open. The major is dynamic, so the rule names the driver and systemd resolves it through `/proc/devices`. Read suffices: the cgroup gates `open()`, and the passthrough runs on a read-only descriptor. `rw` only adds opening the node for writing, which nothing here does. `ProtectClock` adds `char-rtc r` to the same list | Full set. With the policy closed and no allow rule, 62 of 134: `scrape_success` reads 0, `errors_total` carries `reason="open"`, and every drive metric is absent |
+
+`systemd-analyze security` rates this unit 2.0. What it still flags is
+inherent: the ambient capability, access to device nodes, and a listening
+socket.
+
+Two more directives, deliberately left out:
+
+| Directive | Effect | Metrics |
+|---|---|---|
+| `ProcSubset=pid` | Hides everything in `/proc` outside the process directories, including `/proc/stat`, which the client library reads to place process start time on the wall clock | 133 of 134: `process_start_time_seconds` disappears |
+| `PrivateDevices=` | Substitutes `/dev` and hides the controller nodes. Do not set | Same loss as a closed policy with no allow rule |
+
+No directive restricts which NVMe command is sent. seccomp filters on the
+ioctl request number, and `NVME_IOCTL_ADMIN_CMD` is the one in use; the opcode
+sits in a structure behind the pointer, out of a filter's reach.
 
 This is the recommended way to run on bare metal.
 
@@ -175,12 +225,12 @@ container ends up with an empty `CapEff` and every read fails.
 
 `--privileged` is **not** required here.
 
-### Kubernetes — the widest grant
+### Kubernetes
 
 The DaemonSet runs `privileged: true`, which is broader than
 `CAP_SYS_ADMIN` alone: it grants the full capability set, disables seccomp
-and detaches the AppArmor profile. Compromise of that pod is root on the
-node.
+and detaches the AppArmor profile. A compromise of that pod carries what is
+needed to take over the node.
 
 `--device` under Docker writes a device cgroup rule. Kubernetes has no field
 that writes one, and a hostPath `/dev` without it returns `EPERM` on open.
@@ -203,10 +253,10 @@ would then be worth:
 
 | Deployment | Consequence of compromise | seccomp |
 |---|---|---|
-| systemd | one capability, no new privileges, namespaces restricted, read-only filesystem, `/dev` limited to NVMe character devices | none, see above |
+| systemd | one capability, no new privileges, namespaces restricted, read-only filesystem, `/dev` limited to NVMe character devices | `@system-service`, see above |
 | Docker, with the flags above | one capability, read-only rootfs, no new privileges, only the listed devices | active, but see below |
 | Docker, without them | fifteen capabilities, writable rootfs, privilege escalation through setuid binaries possible | active, but see below |
-| Kubernetes DaemonSet | root on the node | disabled by `privileged` |
+| Kubernetes DaemonSet | enough to take over the node | disabled by `privileged` |
 
 The default seccomp profile stays in force under Docker, but it does not
 narrow `CAP_SYS_ADMIN` itself. One rule in that profile carries
