@@ -64,7 +64,7 @@
   "links": [],
   "panels": [
     {
-      "id": 49,
+      "id": 50,
       "type": "row",
       "title": "Fleet health",
       "collapsed": false,
@@ -870,7 +870,7 @@
       }
     },
     {
-      "id": 50,
+      "id": 51,
       "type": "row",
       "title": "Worst offenders",
       "collapsed": false,
@@ -1436,7 +1436,7 @@
       }
     },
     {
-      "id": 51,
+      "id": 52,
       "type": "row",
       "title": "Inventory",
       "collapsed": true,
@@ -1954,7 +1954,7 @@
       ]
     },
     {
-      "id": 52,
+      "id": 53,
       "type": "row",
       "title": "Endurance and wear",
       "collapsed": true,
@@ -2704,7 +2704,7 @@
       ]
     },
     {
-      "id": 53,
+      "id": 54,
       "type": "row",
       "title": "Temperature",
       "collapsed": true,
@@ -3078,7 +3078,7 @@
       ]
     },
     {
-      "id": 54,
+      "id": 55,
       "type": "row",
       "title": "Self-test",
       "collapsed": true,
@@ -3420,7 +3420,7 @@
       ]
     },
     {
-      "id": 55,
+      "id": 56,
       "type": "row",
       "title": "Reliability",
       "collapsed": true,
@@ -3754,7 +3754,7 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 8,
             "x": 0,
             "y": 16
           },
@@ -3835,17 +3835,94 @@
         },
         {
           "id": 38,
-          "type": "table",
-          "title": "Error log entries by status",
-          "description": "Every entry the drive's Error Information log retains, grouped by status. The log holds ELPE+1 entries, 64 to 256 on the hardware surveyed, and the exporter reads all of them. Diagnostic only. Note that this includes admin commands rejected because the drive does not implement them \u2014 including probes from other monitoring tools on the same host \u2014 so it is not a health signal on its own.",
+          "type": "timeseries",
+          "title": "Error log entries written (lifetime)",
+          "description": "Entries the drive has appended to its Error Information log since it was new. Drives at zero are filtered out, which is most of them. The counter survives resets, so the level says how much has accumulated over the drive's life and the step says when. Rejected admin commands count here, including ones rejected because the drive does not implement them, so growth usually means something started probing an optional page rather than that a drive turned faulty.",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
-            "x": 12,
+            "w": 8,
+            "x": 8,
+            "y": 16
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+              },
+              "editorMode": "code",
+              "expr": "nvme_logpage_error_log_entries_total{job=~\"$job\",instance=~\"$instance\",device=~\"$device\"} > 0",
+              "legendFormat": "{{instance}} {{device}}",
+              "range": true,
+              "instant": false,
+              "format": "time_series",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "axisPlacement": "auto",
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "lineWidth": 1,
+                "pointSize": 4,
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                }
+              },
+              "unit": "none",
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          }
+        },
+        {
+          "id": 39,
+          "type": "table",
+          "title": "Error log entries by status",
+          "description": "Every entry the drive's Error Information log retains, grouped by status. The log holds ELPE+1 entries, 64 to 256 on the hardware surveyed, and the exporter reads all of them. Diagnostic only. Note that this includes admin commands rejected because the drive does not implement them \u2014 including probes from other monitoring tools on the same host \u2014 so it is not a health signal on its own.\n\nSCT is the Status Code Type, the class of the failure: 0 generic command status, 1 command specific, 2 media and data integrity, 3 path related, 7 vendor specific. SC is the Status Code within that class, and only the pair means anything: SCT 0 with SC 0x02 is Invalid Field in Command, SCT 1 with SC 0x09 is Invalid Log Page. SCT 2 is the class worth reacting to \u2014 that one is the medium.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
             "y": 16
           },
           "targets": [
@@ -3905,7 +3982,68 @@
                 ]
               }
             },
-            "overrides": []
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Device"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 65
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Serial"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 150
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "SC"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 35
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "SCT"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 25
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Entries"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 50
+                  }
+                ]
+              }
+            ]
           },
           "options": {
             "cellHeight": "sm",
@@ -3918,7 +4056,7 @@
       ]
     },
     {
-      "id": 56,
+      "id": 57,
       "type": "row",
       "title": "Activity",
       "collapsed": true,
@@ -3930,7 +4068,7 @@
       },
       "panels": [
         {
-          "id": 39,
+          "id": 40,
           "type": "timeseries",
           "title": "Host byte rate",
           "description": "Throughput as the controller counts it.",
@@ -4020,7 +4158,7 @@
           }
         },
         {
-          "id": 40,
+          "id": 41,
           "type": "timeseries",
           "title": "Host command rate",
           "description": "Commands per second. Divided into the byte rate beside it this gives average request size.",
@@ -4110,7 +4248,7 @@
           }
         },
         {
-          "id": 41,
+          "id": 42,
           "type": "timeseries",
           "title": "Controller busy fraction",
           "description": "Fraction of time the controller spent processing commands. Approaching 1 means the drive, not the host, is the bottleneck.",
@@ -4187,7 +4325,7 @@
           }
         },
         {
-          "id": 42,
+          "id": 43,
           "type": "timeseries",
           "title": "Unaligned I/O (rate, OCP)",
           "description": "Host operations not aligned to the controller's internal granularity. A high rate is a direct cause of write amplification.",
@@ -4266,7 +4404,7 @@
       ]
     },
     {
-      "id": 57,
+      "id": 58,
       "type": "row",
       "title": "Exporter self-diagnostics",
       "collapsed": true,
@@ -4278,7 +4416,7 @@
       },
       "panels": [
         {
-          "id": 43,
+          "id": 44,
           "type": "timeseries",
           "title": "Devices failing to scrape",
           "description": "A count, not one lane per device: at fleet scale a per-device state timeline is an unreadable smear. Flat zero is healthy; the table beside it names whoever is not.",
@@ -4356,7 +4494,7 @@
           }
         },
         {
-          "id": 44,
+          "id": 45,
           "type": "table",
           "title": "Devices failing right now",
           "description": "Empty is the healthy state. Cross-reference the reason in \"Errors by reason\" below: 'open' means device-file permissions, 'capability' means CAP_SYS_ADMIN.",
@@ -4436,7 +4574,7 @@
           }
         },
         {
-          "id": 45,
+          "id": 46,
           "type": "timeseries",
           "title": "Devices serving each log page",
           "description": "One line per page rather than one per device and page, which is 112 lanes on this fleet alone. Pages 0x01, 0x02 and 0x03 are mandatory, so those lines should track the device count; 0xC0 is expected to be lower, since client-class drives and the Intel and Dell units do not serve it.",
@@ -4514,7 +4652,7 @@
           }
         },
         {
-          "id": 46,
+          "id": 47,
           "type": "timeseries",
           "title": "Errors by reason (rate)",
           "description": "\"No data\" here means no device has ever failed, which is the healthy state. 'open' means the device file could not be opened \u2014 install the udev rule. 'capability' means it opened but the ioctl was refused \u2014 check AmbientCapabilities.",
@@ -4591,7 +4729,7 @@
           }
         },
         {
-          "id": 47,
+          "id": 48,
           "type": "timeseries",
           "title": "Scrape duration",
           "description": "Time to poll one device. Single-digit milliseconds is normal; this exporter issues ioctls directly rather than forking a helper per scrape.",
@@ -4668,7 +4806,7 @@
           }
         },
         {
-          "id": 48,
+          "id": 49,
           "type": "table",
           "title": "Exporter build",
           "description": "Version of the exporter running on each host \u2014 check here first when a metric is missing on some hosts but not others. The build-tag field is dropped: this project uses none, so it always reads \"unknown\".",

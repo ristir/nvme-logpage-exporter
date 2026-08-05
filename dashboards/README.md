@@ -24,7 +24,7 @@ datasource.
 | Endurance and wear | wear over time, spare, write rates, write amplification, projected exhaustion, drive age distribution |
 | Temperature | composite and per-sensor readings against the drive's own thresholds, throttling |
 | Self-test | newest outcome and retained entry counts per drive, age of the newest result |
-| Reliability | critical warning flags, errors, retired blocks, unsafe shutdowns, error log by status |
+| Reliability | critical warning flags, errors, retired blocks, unsafe shutdowns, error log totals and breakdown by status |
 | Activity | byte and command rates, controller busy fraction, unaligned I/O |
 | Exporter self-diagnostics | scrape success, log page availability, errors by reason, scrape duration, build info |
 

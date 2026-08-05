@@ -898,7 +898,19 @@ reliability = [
                     "{{instance}} {{device}} cycles", ref="B")],
                "An unsafe shutdown count that tracks the power cycle count "
                "means the host is not shutting the drive down cleanly.",
-               unit="none", w=12, x=0, y=16),
+               unit="none", w=8, x=0, y=16),
+    timeseries("Error log entries written (lifetime)",
+               [tgt(f"nvme_logpage_error_log_entries_total{{{SEL}}} > 0",
+                    "{{instance}} {{device}}")],
+               "Entries the drive has appended to its Error Information log "
+               "since it was new. Drives at zero are filtered out, which is "
+               "most of them. The counter survives resets, so the level says "
+               "how much has accumulated over the drive's life and the step "
+               "says when. Rejected admin commands count here, including ones "
+               "rejected because the drive does not implement them, so growth "
+               "usually means something started probing an optional page "
+               "rather than that a drive turned faulty.",
+               unit="none", w=8, x=8, y=16),
     table("Error log entries by status",
           [tgt(f"nvme_logpage_error_log_retained_entries{{{SEL}}}", instant=True, fmt="table")],
           "Every entry the drive's Error Information log retains, grouped by "
@@ -906,7 +918,13 @@ reliability = [
           "surveyed, and the exporter reads all of them. Diagnostic only. "
           "Note that this includes admin commands rejected because the drive "
           "does not implement them — including probes from other monitoring "
-          "tools on the same host — so it is not a health signal on its own.",
+          "tools on the same host — so it is not a health signal on its own.\n\n"
+          "SCT is the Status Code Type, the class of the failure: 0 generic "
+          "command status, 1 command specific, 2 media and data integrity, "
+          "3 path related, 7 vendor specific. SC is the Status Code within "
+          "that class, and only the pair means anything: SCT 0 with SC 0x02 is "
+          "Invalid Field in Command, SCT 1 with SC 0x09 is Invalid Log Page. "
+          "SCT 2 is the class worth reacting to — that one is the medium.",
           transformations=[
               organize(exclude=["Time", "__name__", "job"],
                        rename={"instance": "Host", "device": "Device",
@@ -914,7 +932,16 @@ reliability = [
                                "status_code_type": "SCT", "status_code": "SC",
                                "Value": "Entries"}),
           ],
-          w=12, h=8, x=12, y=16),
+          # Host gets no width on purpose: Grafana hands the leftover space to
+          # the unsized columns, and without one the table stops short of the
+          # panel edge.
+          overrides=[
+              {"matcher": {"id": "byName", "options": name},
+               "properties": [{"id": "custom.width", "value": width}]}
+              for name, width in (("Device", 65), ("Serial", 150), ("SC", 35),
+                                  ("SCT", 25), ("Entries", 50))
+          ],
+          w=8, h=8, x=16, y=16),
 ]
 
 activity = [
